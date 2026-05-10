@@ -22,7 +22,7 @@ def run_phase1_pipeline():
     
     # 2. 사고 데이터 로드
     log.info("2. 사고 데이터 로드 및 정제")
-    df = load_phase1_data("사고분석-지역별.xlsx")
+    df = load_phase1_data("data/raw/사고분석-지역별.xlsx")
     
     # 3. Feature Engineering
     log.info("3. Feature Engineering (공간 변수 병합 포함)")

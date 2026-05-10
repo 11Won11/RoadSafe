@@ -69,7 +69,59 @@ def create_district_heatmap(df: pd.DataFrame, output_dir: str = "outputs"):
             show=False  # 기본으로는 꺼둠
         ).add_to(m)
         
-    # GeoJson 툴팁 추가
+    # -------------------------------------------------------------
+    # 이륜차 사고 다발 지역 데이터 추가 (Geofencing Zones)
+    # -------------------------------------------------------------
+    hotspot_file = Path("data/raw/이륜차_사고다발지역_utf8.csv")
+    if hotspot_file.exists():
+        try:
+            hotspot_df = pd.read_csv(hotspot_file)
+            # 서울특별시 데이터만 필터링
+            seoul_hotspots = hotspot_df[hotspot_df['시도시군구명'].astype(str).str.contains('서울특별시')].copy()
+            
+            # 레이어 그룹 생성
+            hotspot_group = folium.FeatureGroup(name="⚠️ 이륜차 사고 다발 구역 (Geofencing)", show=True)
+            
+            for _, row in seoul_hotspots.iterrows():
+                # 1. 마커 추가 (위도, 경도)
+                lat, lon = row['위도'], row['경도']
+                popup_text = f"<b>{row['지점명']}</b><br>사고건수: {row['사고건수']}건<br>사상자수: {row['사상자수']}명"
+                
+                folium.CircleMarker(
+                    location=[lat, lon],
+                    radius=5,
+                    color='red',
+                    fill=True,
+                    fill_color='red',
+                    fill_opacity=0.9,
+                    popup=folium.Popup(popup_text, max_width=300),
+                    tooltip="사고 다발 구역"
+                ).add_to(hotspot_group)
+                
+                # 2. 폴리곤 추가 (Geofencing 구역 시각화)
+                if pd.notna(row['다발지역폴리곤']):
+                    poly_json = json.loads(row['다발지역폴리곤'])
+                    
+                    folium.GeoJson(
+                        poly_json,
+                        style_function=lambda x: {
+                            'fillColor': 'red',
+                            'color': 'darkred',
+                            'weight': 2,
+                            'fillOpacity': 0.3,
+                            'dashArray': '5, 5'
+                        },
+                        tooltip=f"Geofencing 구역: {row['지점명']}"
+                    ).add_to(hotspot_group)
+                    
+            hotspot_group.add_to(m)
+            log.info("이륜차 사고 다발 지역(Geofencing) 레이어 추가 완료")
+        except Exception as e:
+            log.error(f"이륜차 사고 다발 지역 데이터 로드 실패: {e}")
+
+    # -------------------------------------------------------------
+    # GeoJson 툴팁 추가 (구별 통계)
+    # -------------------------------------------------------------
     # 통계 데이터를 딕셔너리로 변환
     stats_dict = district_stats.set_index('구').to_dict('index')
     
@@ -99,7 +151,7 @@ def create_district_heatmap(df: pd.DataFrame, output_dir: str = "outputs"):
 
     folium.GeoJson(
         seoul_geo,
-        name='상세 정보 툴팁',
+        name='구별 상세 정보 (툴팁)',
         style_function=lambda x: {'fillColor': 'transparent', 'color': 'black', 'weight': 1, 'opacity': 0.1},
         tooltip=folium.features.GeoJsonTooltip(
             fields=tooltip_fields,
@@ -121,5 +173,5 @@ if __name__ == "__main__":
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
     from src.data.loader_phase1 import load_phase1_data
     
-    df = load_phase1_data("사고분석-지역별.xlsx")
+    df = load_phase1_data("data/raw/사고분석-지역별.xlsx")
     create_district_heatmap(df)

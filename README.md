@@ -63,8 +63,8 @@ pip install folium python-docx openpyxl "numpy<2.0.0"
 
 ### 2. 데이터 준비
 
-* 프로젝트 최상단 폴더에 `사고분석-지역별.xlsx` 파일을 배치합니다. 
-* *(해당 데이터는 Github에 올라가지 않도록 `.gitignore` 처리되어 있습니다.)*
+* 프로젝트 내 `data/raw/` 폴더에 `사고분석-지역별.xlsx` 및 `이륜차_사고다발지역_utf8.csv` 파일을 배치합니다. 
+* *(해당 폴더와 데이터는 Github에 올라가지 않도록 `.gitignore` 처리되어 있습니다.)*
 
 ### 3. 파이프라인 실행
 
