@@ -25,9 +25,25 @@ def engineer_features_phase1(df: pd.DataFrame) -> pd.DataFrame:
     for col in feature_cols:
         df_engineered[col] = df_engineered[col].fillna('알수없음').astype(str)
     
-    # 2. One-Hot Encoding 적용 (XGBoost는 카테고리 변수를 직접 처리할 수도 있지만, 명시적으로 One-Hot)
-    # pd.get_dummies 사용
-    df_encoded = pd.get_dummies(df_engineered[feature_cols], drop_first=False)
+    # 2. OSMnx 공간 변수 병합
+    try:
+        from pathlib import Path
+        osmnx_path = Path("data/interim/district_osmnx_features.csv")
+        if osmnx_path.exists():
+            osmnx_df = pd.read_csv(osmnx_path)
+            # df_engineered['구']와 osmnx_df['구']를 기준으로 병합
+            df_engineered = df_engineered.merge(osmnx_df, on='구', how='left')
+            # 결측치(데이터 없는 구) 0으로 채우기
+            df_engineered[['intersection_count', 'street_length_total', 'intersection_density_per_km']] = df_engineered[['intersection_count', 'street_length_total', 'intersection_density_per_km']].fillna(0)
+            log.info("OSMnx 공간 변수 병합 완료")
+        else:
+            log.warning("OSMnx 파일이 없습니다. 공간 변수 없이 진행합니다.")
+    except Exception as e:
+        log.error(f"OSMnx 병합 중 오류: {e}")
+    
+    # 3. One-Hot Encoding 적용 (XGBoost는 카테고리 변수를 직접 처리할 수도 있지만, 명시적으로 One-Hot)
+    # pd.get_dummies 사용 (숫자형 변수들은 get_dummies에서 무시되고 그대로 유지됨)
+    df_encoded = pd.get_dummies(df_engineered[feature_cols + ['intersection_count', 'street_length_total', 'intersection_density_per_km'] if 'intersection_count' in df_engineered.columns else feature_cols], drop_first=False)
     
     # 3. Target 변수 합치기
     df_final = pd.concat([df_encoded, df_engineered[['is_severe']]], axis=1)

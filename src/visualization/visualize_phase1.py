@@ -19,7 +19,15 @@ def create_district_heatmap(df: pd.DataFrame, output_dir: str = "outputs"):
         평균심각도=('is_severe', 'mean')
     ).reset_index()
     
-    # '구' 이름 보정 (JSON 데이터와 매핑을 위해. '중구' -> '중구' 등 기본적으로 맞을 것임)
+    # OSMnx 공간 변수 로드
+    osmnx_path = Path("data/interim/district_osmnx_features.csv")
+    if osmnx_path.exists():
+        osmnx_df = pd.read_csv(osmnx_path)
+        district_stats = district_stats.merge(osmnx_df, on='구', how='left')
+        district_stats.fillna(0, inplace=True)
+        has_osmnx = True
+    else:
+        has_osmnx = False
     
     # 서울시 구 경계 GeoJSON 다운로드
     geojson_url = "https://raw.githubusercontent.com/southkorea/seoul-maps/master/kostat/2013/json/seoul_municipalities_geo_simple.json"
@@ -33,7 +41,7 @@ def create_district_heatmap(df: pd.DataFrame, output_dir: str = "outputs"):
     # Folium 맵 초기화 (서울 중심)
     m = folium.Map(location=[37.5665, 126.9780], zoom_start=11, tiles="CartoDB positron")
     
-    # Choropleth 추가 (사고 건수 기준 히트맵)
+    # Choropleth 1: 사고 건수 히트맵
     folium.Choropleth(
         geo_data=seoul_geo,
         name='PM 사고 위험도 (사고 건수)',
@@ -46,10 +54,20 @@ def create_district_heatmap(df: pd.DataFrame, output_dir: str = "outputs"):
         legend_name='PM 사고 발생 건수'
     ).add_to(m)
     
-    # 구별 툴팁 정보 추가를 위한 마커
-    for idx, row in district_stats.iterrows():
-        # 각 구의 대략적인 중심 좌표를 찾기 어려우므로 GeoJSON 피처에 직접 툴팁 적용하는 방법 사용
-        pass
+    # Choropleth 2: 교차로 밀도 히트맵 (osmnx 데이터가 있을 경우)
+    if has_osmnx:
+        folium.Choropleth(
+            geo_data=seoul_geo,
+            name='교차로 밀도 (1km당)',
+            data=district_stats,
+            columns=['구', 'intersection_density_per_km'],
+            key_on='feature.properties.name',
+            fill_color='PuBu',
+            fill_opacity=0.6,
+            line_opacity=0.2,
+            legend_name='도로 1km당 교차로 수',
+            show=False  # 기본으로는 꺼둠
+        ).add_to(m)
         
     # GeoJson 툴팁 추가
     # 통계 데이터를 딕셔너리로 변환
@@ -61,17 +79,31 @@ def create_district_heatmap(df: pd.DataFrame, output_dir: str = "outputs"):
         if gu_name in stats_dict:
             feature['properties']['사고건수'] = str(stats_dict[gu_name]['사고건수']) + " 건"
             feature['properties']['고위험비율'] = f"{stats_dict[gu_name]['평균심각도']*100:.1f} %"
+            if has_osmnx:
+                feature['properties']['교차로수'] = f"{int(stats_dict[gu_name]['intersection_count']):,} 개"
+                feature['properties']['도로길이'] = f"{stats_dict[gu_name]['street_length_total']/1000:.1f} km"
+                feature['properties']['교차로밀도'] = f"{stats_dict[gu_name]['intersection_density_per_km']:.1f} 개/km"
         else:
             feature['properties']['사고건수'] = "데이터 없음"
             feature['properties']['고위험비율'] = "데이터 없음"
+            if has_osmnx:
+                feature['properties']['교차로수'] = "데이터 없음"
+                feature['properties']['도로길이'] = "데이터 없음"
+                feature['properties']['교차로밀도'] = "데이터 없음"
             
+    tooltip_fields = ['name', '사고건수', '고위험비율']
+    tooltip_aliases = ['구:', '사고 건수:', '고위험 사고 비율:']
+    if has_osmnx:
+        tooltip_fields.extend(['교차로수', '도로길이', '교차로밀도'])
+        tooltip_aliases.extend(['총 교차로 수:', '총 도로 길이:', '교차로 밀도:'])
+
     folium.GeoJson(
         seoul_geo,
-        name='상세 정보',
+        name='상세 정보 툴팁',
         style_function=lambda x: {'fillColor': 'transparent', 'color': 'black', 'weight': 1, 'opacity': 0.1},
         tooltip=folium.features.GeoJsonTooltip(
-            fields=['name', '사고건수', '고위험비율'],
-            aliases=['구:', '사고 건수:', '고위험 사고 비율:'],
+            fields=tooltip_fields,
+            aliases=tooltip_aliases,
             labels=True,
             sticky=True
         )
