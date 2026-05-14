@@ -247,6 +247,5 @@ def create_risk_dashboard(
     output_path = f"{output_dir}/seoul_pm_risk_map.html"
     m.save(output_path)
 
-    high_grid = sum(1 for f in grid_features if f["properties"]["score"] >= 80)
     log.info(f"SAFERIDE 대시보드 저장 완료: {output_path}")
-    log.info(f"격자 통계: 총 {len(grid_features)}개 | 고위험(80+) {high_grid}개")
+    log.info(f"격자 통계: 총 {len(grid_df)}개 | 고위험(80+) {high_count}개")
