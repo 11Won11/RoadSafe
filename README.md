@@ -1,84 +1,119 @@
-# <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Travel%20and%20places/Kick%20Scooter.png" alt="Kick Scooter" width="45" height="45" style="vertical-align: middle;"/> SAFERIDE: 데이터 기반 개인형 이동장치(PM) 안전 및 정책 플랫폼
+# <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Travel%20and%20places/Kick%20Scooter.png" alt="Kick Scooter" width="45" height="45" style="vertical-align: middle;"/> SAFERIDE — PM 사고 공간 위험도 예측 플랫폼
 
-![Python](https://img.shields.io/badge/Python-3.11-blue?style=for-the-badge&logo=python)
-![XGBoost](https://img.shields.io/badge/XGBoost-2.0.3-red?style=for-the-badge&logo=xgboost)
-![Optuna](https://img.shields.io/badge/Optuna-3.6.1-blue?style=for-the-badge)
-![SHAP](https://img.shields.io/badge/SHAP-Explainable%20AI-brightgreen?style=for-the-badge)
-![Folium](https://img.shields.io/badge/Folium-Geospatial-orange?style=for-the-badge)
+![Python](https://img.shields.io/badge/Python-3.10-blue?style=for-the-badge&logo=python)
+![XGBoost](https://img.shields.io/badge/XGBoost-AUROC_0.896-red?style=for-the-badge)
+![Optuna](https://img.shields.io/badge/Optuna-Bayesian_HPO-blue?style=for-the-badge)
+![SHAP](https://img.shields.io/badge/SHAP-Explainable_AI-brightgreen?style=for-the-badge)
+![OSMnx](https://img.shields.io/badge/OSMnx-Spatial_Feature-orange?style=for-the-badge)
+![Folium](https://img.shields.io/badge/Folium-Grid_Heatmap-green?style=for-the-badge)
 
-**SAFERIDE**는 단순한 AI 예측 모델을 넘어, **데이터로 교통 안전을 바꾸는 정책형 플랫폼**입니다. 
-경찰청 TAAS 데이터, 기상 데이터, 행정 구역 데이터를 종합하여 전동킥보드 등 개인형 이동장치(PM)의 사고 위험도를 예측하고, 지자체와 기업이 활용할 수 있는 정량적 정책 근거를 제공합니다.
-
----
-
-## <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Travel%20and%20places/Rocket.png" alt="Rocket" width="30" height="30" style="vertical-align: middle;"/> 주요 기능 (Key Features)
-
-### <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Travel%20and%20places/World%20Map.png" alt="World Map" width="25" height="25" style="vertical-align: middle;"/> 1. 위험 Hotspot 지도 & 대시보드
-* 서울시 구(區) 단위 / 500m 격자 단위의 PM 사고 위험도를 색상 히트맵으로 시각화합니다.
-* 클릭 시 해당 구역의 **사고 심각도(고위험 비율) 및 핵심 위험 요인**을 즉시 확인할 수 있습니다.
-
-### <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Light%20Bulb.png" alt="Light Bulb" width="25" height="25" style="vertical-align: middle;"/> 2. 설명 가능한 AI (XAI)를 통한 정책 근거 제시
-* **SHAP (SHapley Additive exPlanations)** 기술을 적용하여, 모델이 블랙박스로 남지 않도록 합니다.
-* 야간 주행, 신호 위반, 교차로 등 어떤 환경적 요인이 사고를 치명적으로 만드는지 정량화하여 지자체 정책 수립의 근거로 제공합니다.
-
-### <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Bell.png" alt="Bell" width="25" height="25" style="vertical-align: middle;"/> 3. 실시간 Geofencing 및 알림 연계 (설계안)
-* 고위험 구역 진입 시 "현재 사고 위험 높음 - 감속 권고" 알림 제공.
-* PM 공유 플랫폼 기업에 REST API 형태로 위험도 데이터를 제공하여 **자동 속도 제한(Geofencing)**을 지원합니다.
+> **"사고가 나기 전에 위험한 공간을 먼저 바꿉니다."**
+>
+> SAFERIDE는 서울시 PM(개인형 이동장치) 사고 좌표 데이터와 도로망 공간 정보를 결합하여,
+> **사고가 없었던 지점도 포함해** 서울 전역의 공간적 PM 사고 위험도를 0~100점으로 예측하는 AI 플랫폼입니다.
 
 ---
 
-## <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Hammer%20and%20Wrench.png" alt="Hammer and Wrench" width="30" height="30" style="vertical-align: middle;"/> 시스템 아키텍처 및 모델 고도화 전략
+## <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Travel%20and%20places/Rocket.png" alt="Rocket" width="30" height="30" style="vertical-align: middle;"/> 핵심 기술 및 성과
 
-본 프로젝트는 점진적인 모델 고도화 전략을 채택합니다.
-
-* **Phase 1: XGBoost Baseline 모델 (완료)**
-  * PM 사고 데이터 기반 심각도(사망/중상 vs 경상) 분류 예측.
-  * `scale_pos_weight` 적용 및 `Optuna` 기반 Bayesian Optimization (TPE) 탐색.
-  * SHAP 기반 Feature Importance 도출.
-* **Phase 2: LSTM 시계열 모델 (예정)**
-  * 500m 단위 격자(Grid) 생성 및 1시간 단위 6시간 슬라이딩 윈도우 데이터 구축.
-* **Phase 3: SST-GCN 시공간 융합 모델 (예정)**
-  * 도로 네트워크(Node, Edge) 기반 Graph Convolutional Network와 LSTM 결합.
+| 항목 | 내용 |
+|---|---|
+| **모델** | XGBoost 이진 분류 (사고 발생 지점 vs 비사고 지점) |
+| **AUROC** | **0.896** (랜덤 예측 0.5 대비 대폭 향상) |
+| **Accuracy / F1** | **82% / 0.82** (균형 잡힌 성능) |
+| **데이터** | 서울시 PM 사고 2021–2024 (1,799건, 위도·경도 전수 보유) |
+| **음성 샘플** | 3단계 매칭 샘플링으로 공간 편향 없이 비사고 지점 자동 생성 |
+| **Feature** | OSMnx 기반 교차로 수(반경 100/200/500m), 도로 등급, 차선 수 등 지점 단위 정밀 공간 Feature |
+| **시각화** | 서울 전체 6,528개 500m 격자 위험도 히트맵 (브라우저 대시보드) |
 
 ---
 
-## <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Laptop.png" alt="Laptop" width="30" height="30" style="vertical-align: middle;"/> 실행 방법 (Phase 1 기준)
+## <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Light%20Bulb.png" alt="Light Bulb" width="30" height="30" style="vertical-align: middle;"/> 주요 기능
+
+### 🗺️ 1. 서울 전역 격자 위험도 히트맵
+* 서울을 **500m × 500m 격자** 6,500여 개로 나눠 **사고가 없었던 지점도 예측**
+* 초록(안전) → 노랑 → 주황 → 빨강(위험)의 직관적 색상 스케일
+* 격자를 클릭하면 해당 구역의 **위험 요인 Top-5 (SHAP 값 기반 자동 해설)** 팝업 표시
+
+### 🧠 2. SHAP 기반 설명 가능한 AI (XAI)
+* 모델이 왜 이 지점을 위험하다고 판단했는지 **SHAP 값으로 정량화**
+* Feature Importance Bar 차트 + 방향성 Dot 차트 자동 생성
+* 보고서·발표 자료로 바로 활용 가능한 그래프 저장
+
+### 🏗️ 3. OSMnx 기반 공간 Feature 자동 추출
+* **외부 API 키 없이** OpenStreetMap에서 서울 전체 도로망을 파이썬이 자동 다운로드
+* 각 지점 기준 반경 100m / 200m / 500m 내 교차로 수, 최근접 교차로 거리, 도로 등급, 차선 수 등 추출
+* 최초 실행 후 `data/interim/`에 **캐싱**되어 이후 실행은 즉시 로드
+
+### 🔴 4. 이륜차 사고 다발 구역 Geofencing 레이어
+* 경찰청 이륜차 사고 다발 지역 데이터를 레이어로 오버레이
+* PM 기업 API와 연동 시 **고위험 구역 진입 자동 감속(Geofencing)** 구현 가능
+
+---
+
+## <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Hammer%20and%20Wrench.png" alt="Hammer and Wrench" width="30" height="30" style="vertical-align: middle;"/> 파이프라인 아키텍처
+
+```
+[STEP 1] PM 사고 CSV 로드 (2021~2024, 1,799건)
+        ↓
+[STEP 2] 3단계 매칭 샘플링 → 음성 샘플 생성 (1:1 균형)
+        ↓
+[STEP 3] 지점 단위 OSMnx 공간 Feature 추출 (캐시)
+        ↓
+[STEP 4] Optuna(n_trials=50) + XGBoost 학습 → SHAP 분석
+        ↓
+[STEP 5] 서울 전체 6,528개 격자 위험도 예측 → 히트맵 대시보드 생성
+```
+
+---
+
+## <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Laptop.png" alt="Laptop" width="30" height="30" style="vertical-align: middle;"/> 실행 방법
 
 ### 1. 환경 설정
 
-Anaconda를 사용한 가상환경 세팅을 권장합니다.
-
 ```bash
 # 가상환경 생성 및 활성화
-conda create -n roadsafe python=3.11 -y
+conda create -n roadsafe python=3.10 -y
 conda activate roadsafe
 
-# 공간 데이터 분석용 패키지 우선 설치 (충돌 방지)
+# 공간 라이브러리 우선 설치 (충돌 방지)
 conda install -c conda-forge geopandas osmnx pyproj shapely -y
 
-# 의존성 패키지 설치
+# 나머지 패키지 설치
 pip install -r requirements.txt
-pip install folium python-docx openpyxl "numpy<2.0.0"
 ```
 
 ### 2. 데이터 준비
 
-* 프로젝트 내 `data/raw/` 폴더에 `사고분석-지역별.xlsx` 및 `이륜차_사고다발지역_utf8.csv` 파일을 배치합니다. 
-* *(해당 폴더와 데이터는 Github에 올라가지 않도록 `.gitignore` 처리되어 있습니다.)*
+`data/raw/` 폴더에 아래 파일을 배치합니다.
+*(해당 폴더는 `.gitignore` 처리되어 GitHub에 업로드되지 않습니다.)*
 
-### 3. 파이프라인 실행
+```
+data/raw/
+├── 서울특별시_2021-2023.csv   # PM 사고 좌표 데이터
+├── 서울특별시-2024.csv        # PM 사고 좌표 데이터
+└── 이륜차_사고다발지역_utf8.csv  # 이륜차 사고 다발 지역 (선택)
+```
+
+### 3. 전체 파이프라인 실행
 
 ```bash
-# 전체 파이프라인 자동 실행 (데이터로드 -> 특성 공학 -> 학습 -> 시각화)
-python3 scripts/run_phase1.py
+python scripts/run.py
 ```
+
+> **⏱️ 소요 시간 안내**
+> - 최초 실행: 서울 도로망 다운로드 + 격자 Feature 추출로 **약 15~20분** 소요
+> - 재실행: 모든 중간 결과가 `data/interim/`에 캐싱되어 **약 30초** 이내 완료
 
 ### 4. 결과물 확인
 
-실행이 완료되면 `outputs/` 디렉토리에 다음 파일들이 생성됩니다:
-* `seoul_pm_risk_map.html`: 서울 구별 사고 다발 구역 및 심각도 히트맵 (브라우저에서 실행)
-* `shap_summary_bar.png`: Feature 중요도 막대 그래프
-* `shap_summary_dot.png`: Feature 값 변화에 따른 심각도 영향 산점도
+`outputs/` 폴더에 생성됩니다:
+
+| 파일 | 설명 |
+|---|---|
+| `seoul_pm_risk_map.html` | 서울 전역 격자 위험도 히트맵 (브라우저에서 열기) |
+| `shap_risk_bar.png` | Feature 중요도 순위 그래프 |
+| `shap_risk_dot.png` | Feature 값에 따른 위험도 영향 방향성 그래프 |
 
 ---
 
@@ -87,30 +122,45 @@ python3 scripts/run_phase1.py
 ```text
 RoadSafe/
 ├── scripts/
-│   ├── setup_project.py     # 프로젝트 기본 디렉토리 셋업
-│   └── run_phase1.py        # Phase 1 전체 파이프라인 실행 스크립트
+│   ├── run.py                   # 🚀 전체 파이프라인 실행 (메인 진입점)
+│   └── setup_project.py         # 프로젝트 디렉토리 초기 설정
 ├── src/
 │   ├── data/
-│   │   ├── loader.py        # Phase 2용 다중 소스 병합 로더
-│   │   └── loader_phase1.py # Phase 1용 엑셀 데이터 로더
+│   │   ├── loader_pm.py         # PM 사고 CSV 로더 (2021-2024 병합)
+│   │   └── negative_sampler.py  # 3단계 매칭 샘플링 (비사고 지점 생성)
 │   ├── features/
-│   │   ├── engineer.py      # 시간/기상 변수 엔지니어링
-│   │   ├── engineer_phase1.py # Phase 1용 One-hot 인코딩
-│   │   └── grid.py          # Phase 2용 500m 격자 생성
+│   │   ├── engineer_point.py    # 사고/비사고 지점 OSMnx Feature 추출
+│   │   ├── engineer_grid.py     # 서울 전역 격자 위험도 예측
+│   │   └── engineer_osmnx.py    # 구별 도로망 통계 (보조)
 │   ├── models/
-│   │   ├── train_xgb.py     # XGBoost 학습 원본
-│   │   ├── train_xgb_phase1.py # Phase 1 XGBoost + SHAP 분석
-│   │   └── lstm_model.py    # Phase 2용 LSTM 모델
+│   │   └── train_xgb_point.py   # XGBoost 학습 + Optuna HPO + SHAP
 │   └── visualization/
-│       └── visualize_phase1.py # 구 단위 위험도 히트맵 (Folium)
-├── tests/                   # 단위 테스트 코드
-├── outputs/                 # 시각화 및 모델 결과물 (Git Ignore)
+│       └── visualize.py         # 격자 히트맵 대시보드 생성
+├── data/
+│   ├── raw/                     # 원본 데이터 (Git 제외)
+│   └── interim/                 # 캐시 파일 (Git 제외)
+├── outputs/                     # 결과물 (Git 제외)
+├── tests/
 └── requirements.txt
 ```
 
 ---
 
+## <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Bar%20Chart.png" alt="Bar Chart" width="30" height="30" style="vertical-align: middle;"/> 모델 성능
+
+| 모델 | AUROC | 비고 |
+|---|---|---|
+| **XGBoost (최종)** | **0.896** | Optuna 50회 탐색 |
+| Random Forest | 0.892 | 비교 모델 |
+| Logistic Regression | 0.816 | 비교 모델 |
+
+> 기존 구(區) 단위 집계 기반 모델(AUROC 0.59) 대비, 지점 단위 정밀 좌표 + OSMnx 공간 Feature 도입으로 **AUROC 0.896**으로 대폭 향상.
+
+---
+
 ## <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Books.png" alt="Books" width="30" height="30" style="vertical-align: middle;"/> 참고 문헌
-* Chengula et al. (2024). Spatial instability of crash prediction models: A case of scooter crashes.
-* Lacherre et al. (2024). Factors, Prediction, and Explainability of Vehicle Accident Risk Due to Driving Behavior through Machine Learning.
-* Kim et al. (2024). SST-GCN: The Sequential based Spatio-Temporal Graph Convolutional Networks.
+
+* Chengula et al. (2024). *Spatial instability of crash prediction models: A case of scooter crashes.* Machine Learning with Applications, 17.
+* Lacherre et al. (2024). *Factors, Prediction, and Explainability of Vehicle Accident Risk Due to Driving Behavior through Machine Learning.* Computation, 12, 131.
+* Kim et al. (2024). *SST-GCN: The Sequential based Spatio-Temporal Graph Convolutional Networks for Minute-level and Road-level Traffic Accident Risk Prediction.* arXiv:2405.18602.
+* Abdullah et al. (2026). *Identifying accident and safety risks in urban micromobility.* Sustainable Futures, 11.
