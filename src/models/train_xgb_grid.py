@@ -177,6 +177,12 @@ def train_grid_model(
     """
     Path(output_dir).mkdir(parents=True, exist_ok=True)
 
+    # ── [비판 1, 2 방어] 산/강/외곽 지역 필터링 ──────────────────
+    # 교차로가 반경 500m 내에 1개도 없는 곳은 PM 주행 자체가 불가능한 산/강/시외곽으로 간주
+    before_len = len(grid_df)
+    grid_df = grid_df[grid_df["intersection_count_500m"] > 0].copy()
+    log.info(f"산/강/외곽 지역 필터링: {before_len} -> {len(grid_df)}개 격자 (노출량 0 지역 제외)")
+
     feat_cols = [c for c in SPATIAL_FEAT_COLS if c in grid_df.columns]
     log.info(f"사용 Feature: {feat_cols}")
 
@@ -215,11 +221,27 @@ def train_grid_model(
 
     # ── 시간적 검증: 2024 사고 기준 PAI ─────────────────────────
     log.info("\n--- 시간적 검증 (2024 사고 기준) ---")
-    _eval_and_print(grid_df, label_col="label_2024", tag="2024년 사고")
+    auroc_2024, pai_2024 = _eval_and_print(grid_df, label_col="label_2024", tag="2024년 사고")
 
     # ── 전체 기준 AUROC ──────────────────────────────────────────
     log.info("--- 전체 기간 기준 ---")
-    _eval_and_print(grid_df, label_col="label_all", tag="전체(2021-24)")
+    auroc_all, pai_all = _eval_and_print(grid_df, label_col="label_all", tag="전체(2021-24)")
+
+    # ── 지표 저장 (보고서/논문용) ──────────────────────────────
+    pai_2024.to_csv(f"{output_dir}/pai_metrics_2024.csv", index=False)
+    pai_all.to_csv(f"{output_dir}/pai_metrics_all.csv", index=False)
+    
+    with open(f"{output_dir}/evaluation_summary.txt", "w", encoding="utf-8") as f:
+        f.write("=== SAFERIDE 격자 위험도 모델 평가 요약 ===\n\n")
+        f.write(f"[1] 2024년 시간적 검증 (미래 예측)\n")
+        f.write(f"  - AUROC: {auroc_2024:.4f}\n")
+        f.write(f"  - PAI@10%: {pai_2024.loc[9, 'pai']:.2f}\n")
+        f.write(f"  - PAI@20%: {pai_2024.loc[19, 'pai']:.2f}\n\n")
+        f.write(f"[2] 전체(2021-2024) 데이터 기준\n")
+        f.write(f"  - AUROC: {auroc_all:.4f}\n")
+        f.write(f"  - PAI@10%: {pai_all.loc[9, 'pai']:.2f}\n")
+        f.write(f"  - PAI@20%: {pai_all.loc[19, 'pai']:.2f}\n")
+    log.info(f"평가 결과 저장: {output_dir}/evaluation_summary.txt, pai_metrics_*.csv")
 
     # ── SHAP 분석 ────────────────────────────────────────────────
     explainer = shap.TreeExplainer(model)
@@ -249,12 +271,13 @@ def train_grid_model(
 
 
 def _eval_and_print(grid_df, label_col, tag):
-    """PAI + AUROC 출력"""
-    from src.evaluation.evaluate import compute_pai, plot_pai_curve
+    """PAI + AUROC 출력 및 반환"""
+    from src.evaluation.evaluate import compute_pai
 
     y_true = grid_df[label_col].values
     y_score = grid_df["risk_score"].values / 100
 
+    auroc = 0.0
     # 라벨이 있는 경우만 AUROC
     if y_true.sum() > 0 and y_true.sum() < len(y_true):
         auroc = roc_auc_score(y_true, y_score)
@@ -275,7 +298,7 @@ def _eval_and_print(grid_df, label_col, tag):
         row = pai_df.loc[k - 1]
         print(f"  {k:>5}% | {int(row['acc_captured']):>8} | {row['acc_ratio']*100:>6.1f}% | {row['pai']:>6.2f}")
 
-    return pai_df
+    return auroc, pai_df
 
 
 if __name__ == "__main__":
