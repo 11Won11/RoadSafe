@@ -29,7 +29,6 @@ for font in fm.findSystemFonts():
         break
 plt.rcParams["axes.unicode_minus"] = False
 
-GRID_FEAT_CACHE = Path("data/interim/grid_features_with_labels.csv")
 GRID_MODEL_PATH = Path("data/interim/xgb_grid_model.pkl")
 GRID_LAT = 0.0045
 GRID_LON = 0.0056
@@ -40,37 +39,47 @@ GRID_LON = 0.0056
 def build_grid_dataset(
     acc_df: pd.DataFrame,
     force: bool = False,
+    city_name: str = "Seoul"
 ) -> pd.DataFrame:
     """
-    서울 전역 격자 × OSMnx 공간 Feature + 사고 건수 라벨 DataFrame 생성.
+    대상 도시(city_name) 전역 격자 × OSMnx 공간 Feature + 사고 건수 라벨 DataFrame 생성.
     acc_df에는 '위도', '경도', '발생연도' 컬럼이 있어야 함.
-
-    캐시: data/interim/grid_features_with_labels.csv
     """
     import sys
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-    from src.features.engineer_grid import _extract_spatial_features, SEOUL_BBOX
+    from src.features.engineer_grid import _extract_spatial_features
     import osmnx as ox
 
-    if GRID_FEAT_CACHE.exists() and not force:
-        log.info(f"격자 Feature 캐시 로드: {GRID_FEAT_CACHE}")
-        return pd.read_csv(GRID_FEAT_CACHE)
+    grid_feat_cache = Path(f"data/interim/grid_features_with_labels_{city_name.lower()}.csv")
+    if grid_feat_cache.exists() and not force:
+        log.info(f"격자 Feature 캐시 로드: {grid_feat_cache}")
+        return pd.read_csv(grid_feat_cache)
+
+    # 도시 BBOX 추출
+    log.info(f"{city_name} Bounding Box 추출 중...")
+    try:
+        gdf_city = ox.geocode_to_gdf(f"{city_name}, South Korea")
+        bbox = gdf_city.bounds.iloc[0]
+        lat_min_b, lat_max_b, lon_min_b, lon_max_b = bbox.miny, bbox.maxy, bbox.minx, bbox.maxx
+    except Exception as e:
+        log.warning(f"BBOX 추출 실패, 기본 서울 BBOX 사용. ({e})")
+        lat_min_b, lat_max_b, lon_min_b, lon_max_b = 37.413294, 37.715133, 126.734086, 127.269311
 
     # 도로망 로드
-    graph_cache = Path("data/interim/seoul_graph.graphml")
+    graph_cache = Path(f"data/interim/{city_name.lower()}_graph.graphml")
     if graph_cache.exists():
         G = ox.load_graphml(graph_cache)
     else:
-        G = ox.graph_from_place("Seoul, South Korea", network_type="drive")
+        G = ox.graph_from_place(f"{city_name}, South Korea", network_type="drive")
         ox.save_graphml(G, graph_cache)
     nodes, _ = ox.graph_to_gdfs(G)
 
     # 격자 목록 생성
     grid_cells = []
-    lat = SEOUL_BBOX["lat_min"]
-    while lat < SEOUL_BBOX["lat_max"]:
-        lon = SEOUL_BBOX["lon_min"]
-        while lon < SEOUL_BBOX["lon_max"]:
+    lat = lat_min_b
+    while lat < lat_max_b:
+        lon = lon_min_b
+        while lon < lon_max_b:
             cy = lat + GRID_LAT / 2
             cx = lon + GRID_LON / 2
             grid_cells.append((lat, lon, cy, cx))
@@ -126,13 +135,13 @@ def build_grid_dataset(
     df["label_2024"]    = (df["acc_2024"] > 0).astype(int)
 
     # ── POI 유동인구 Proxy 연동 ────────────────────────────────
-    from src.features.engineer_poi import download_seoul_pois, assign_pois_to_grids
-    poi_df = download_seoul_pois(force=False)
+    from src.features.engineer_poi import download_city_pois, assign_pois_to_grids
+    poi_df = download_city_pois(city_name=city_name, force=False)
     df = assign_pois_to_grids(df, poi_df, GRID_LAT, GRID_LON)
 
-    GRID_FEAT_CACHE.parent.mkdir(parents=True, exist_ok=True)
-    df.to_csv(GRID_FEAT_CACHE, index=False)
-    log.info(f"격자 Feature 저장: {GRID_FEAT_CACHE} ({len(df)}개 격자)")
+    grid_feat_cache.parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(grid_feat_cache, index=False)
+    log.info(f"격자 Feature 저장: {grid_feat_cache} ({len(df)}개 격자)")
     log.info(f"  사고 있는 격자: {df['label_all'].sum()} / {len(df)}")
     return df
 

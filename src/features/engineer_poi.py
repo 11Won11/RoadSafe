@@ -27,17 +27,22 @@ POI_TAGS = {
     ]
 }
 
-def download_seoul_pois(force: bool = False) -> pd.DataFrame:
-    """서울 전체 POI를 다운로드하고 전처리된 DataFrame으로 반환합니다."""
-    if POI_CACHE_PATH.exists() and not force:
-        log.info(f"POI 캐시 로드: {POI_CACHE_PATH}")
-        with open(POI_CACHE_PATH, "rb") as f:
+def download_city_pois(city_name: str = "Seoul", force: bool = False) -> pd.DataFrame:
+    """대상 도시의 전체 POI를 다운로드하고 전처리된 DataFrame으로 반환합니다."""
+    
+    # 캐시 파일명 동적 할당
+    cache_path = Path(f"data/interim/{city_name.lower()}_pois.pkl")
+    
+    if cache_path.exists() and not force:
+        log.info(f"POI 캐시 로드: {cache_path}")
+        with open(cache_path, "rb") as f:
             return pickle.load(f)
 
-    log.info("서울 전역 POI 데이터 다운로드 중... (약 1~2분 소요)")
+    log.info(f"{city_name} 전역 POI 데이터 다운로드 중... (약 1~2분 소요)")
     try:
-        # OSMnx features 모듈 사용
-        gdf = ox.features_from_place("Seoul, South Korea", tags=POI_TAGS)
+        # OSMnx features 모듈 사용 (예: "Seoul, South Korea")
+        query = f"{city_name}, South Korea"
+        gdf = ox.features_from_place(query, tags=POI_TAGS)
         
         # 중심점(Point) 좌표로 변환 (Polygon 건물 등 처리)
         gdf["geometry"] = gdf["geometry"].centroid
@@ -65,8 +70,8 @@ def download_seoul_pois(force: bool = False) -> pd.DataFrame:
         # GeoDataFrame -> DataFrame 변환
         poi_df = pd.DataFrame(poi_df)
         
-        POI_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
-        with open(POI_CACHE_PATH, "wb") as f:
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(cache_path, "wb") as f:
             pickle.dump(poi_df, f)
             
         log.info(f"POI 다운로드 완료: {len(poi_df)}개 위치 추출 (캐시 저장됨)")
