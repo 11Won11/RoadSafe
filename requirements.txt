@@ -1,15 +1,23 @@
+# Data Processing & Analysis
+numpy==1.26.4
 pandas==2.2.2
+scikit-learn==1.5.0
+
+# Geospatial & Mapping
+osmnx==1.9.3
 geopandas==0.14.4
 shapely==2.0.4
-pyproj==3.6.1
-osmnx==1.9.3
+folium==0.20.0
+
+# Machine Learning & Optimization
 xgboost==2.0.3
 optuna==3.6.1
-scikit-learn==1.5.0
-torch==2.3.0
+
+# Explainable AI (XAI)
 shap==0.45.1
+
+# Visualization
 matplotlib==3.9.0
-seaborn==0.13.2
-requests==2.32.3
-tqdm==4.66.4
-python-dotenv==1.0.1
+
+# Utilities
+requests
