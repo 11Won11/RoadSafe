@@ -125,6 +125,11 @@ def build_grid_dataset(
     df["label_2021_23"] = (df["acc_2021_23"] > 0).astype(int)
     df["label_2024"]    = (df["acc_2024"] > 0).astype(int)
 
+    # ── POI 유동인구 Proxy 연동 ────────────────────────────────
+    from src.features.engineer_poi import download_seoul_pois, assign_pois_to_grids
+    poi_df = download_seoul_pois(force=False)
+    df = assign_pois_to_grids(df, poi_df, GRID_LAT, GRID_LON)
+
     GRID_FEAT_CACHE.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(GRID_FEAT_CACHE, index=False)
     log.info(f"격자 Feature 저장: {GRID_FEAT_CACHE} ({len(df)}개 격자)")
@@ -139,6 +144,9 @@ SPATIAL_FEAT_COLS = [
     "node_degree", "dist_to_nearest_intersection",
     "avg_lanes", "max_lanes",
     "is_primary_road", "is_secondary_road", "is_residential_road", "is_intersection",
+    # 추가된 POI (노출량 Proxy) 특성
+    "poi_count_commercial", "poi_count_bus_stop", "poi_count_station", 
+    "poi_count_university", "poi_count_total"
 ]
 
 
