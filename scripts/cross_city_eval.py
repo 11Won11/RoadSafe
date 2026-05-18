@@ -7,6 +7,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import pandas as pd
+import numpy as np
 import logging
 import pickle
 from sklearn.metrics import roc_auc_score
@@ -140,9 +141,12 @@ def run_cross_city_eval(target_city: str = "Busan", city_code: str = "busan"):
     
     # 예측 수행 (Poisson Regression: 예상 사고 건수)
     preds = model.predict(X_target)
-    max_p = preds.max()
-    # 0~100점 만점의 Risk Score로 Min-Max 스케일링
-    grid_df["risk_score"] = (preds / max_p * 100).clip(0, 100) if max_p > 0 else preds
+    robust_max = np.percentile(preds, 99)
+    if robust_max == 0:
+        robust_max = preds.max()
+        
+    # 0~100점 만점의 Risk Score로 Robust 스케일링 (상위 1% 아웃라이어 클리핑)
+    grid_df["risk_score"] = (preds / robust_max * 100).clip(0, 100) if robust_max > 0 else preds
     
     # 평가 (PAI 및 AUROC)
     # 여기서는 시간적 구분이 아닌, 도시 전체 데이터(label_all)로 예측 능력을 봅니다.

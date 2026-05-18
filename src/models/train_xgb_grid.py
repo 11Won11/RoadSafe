@@ -228,9 +228,12 @@ def train_grid_model(
 
     # ── 전체 격자 위험도 예측 (발생 예상 건수) ───────────────
     preds = model.predict(X)
-    max_p = preds.max()
-    # 0~100점 만점의 Risk Score로 Min-Max 스케일링
-    risk_scores = (preds / max_p * 100).clip(0, 100) if max_p > 0 else preds
+    robust_max = np.percentile(preds, 99)
+    if robust_max == 0:
+        robust_max = preds.max()
+    
+    # 0~100점 만점의 Risk Score로 Robust 스케일링 (상위 1% 아웃라이어 클리핑)
+    risk_scores = (preds / robust_max * 100).clip(0, 100) if robust_max > 0 else preds
     
     grid_df = grid_df.copy()
     grid_df["risk_score"] = risk_scores
