@@ -21,3 +21,7 @@ matplotlib==3.9.0
 
 # Utilities
 requests
+
+# Web Dashboard
+streamlit==1.35.0
+streamlit-folium==0.21.0
