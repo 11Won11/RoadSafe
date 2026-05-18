@@ -169,17 +169,17 @@ def _tune(X_train, y_train, n_trials=30):
             colsample_bytree=trial.suggest_float("col", 0.5, 1.0),
             min_child_weight=trial.suggest_int("mcw", 1, 10),
         )
-        spw = (y_train == 0).sum() / max((y_train == 1).sum(), 1)
-        model = xgb.XGBClassifier(
-            **params, scale_pos_weight=spw,
-            eval_metric="auc", use_label_encoder=False, tree_method="hist", random_state=42,
+        model = xgb.XGBRegressor(
+            **params, objective="count:poisson",
+            eval_metric="poisson-nloglik", tree_method="hist", random_state=42,
         )
         from sklearn.model_selection import cross_val_score
-        return cross_val_score(model, X_train, y_train, cv=5, scoring="roc_auc", n_jobs=-1).mean()
+        # Poisson 회귀 평가 지표로 음수 RMSE 사용 (Maximize)
+        return cross_val_score(model, X_train, y_train, cv=5, scoring="neg_root_mean_squared_error", n_jobs=-1).mean()
 
     study = optuna.create_study(direction="maximize", sampler=optuna.samplers.TPESampler(seed=42))
     study.optimize(objective, n_trials=n_trials, show_progress_bar=False)
-    log.info(f"Optuna | Best AUROC={study.best_value:.4f}")
+    log.info(f"Optuna | Best Neg_RMSE={study.best_value:.4f}")
     return study.best_params
 
 
@@ -203,36 +203,35 @@ def train_grid_model(
     feat_cols = [c for c in SPATIAL_FEAT_COLS if c in grid_df.columns]
     log.info(f"사용 Feature: {feat_cols}")
 
-    # ── 훈련: 2021-2023 사고 기준 ───────────────────────────────
+    # ── 훈련: 2021-2023 사고 '발생 횟수(Count)' 기준 (포아송 회귀) ──
     X = grid_df[feat_cols].fillna(0)
-    y_train_label = grid_df["label_2021_23"]
-    y_all_label   = grid_df["label_all"]
+    y_train_count = grid_df["acc_2021_23"]
 
-    pos = y_train_label.sum(); neg = (y_train_label == 0).sum()
-    spw = neg / max(pos, 1)
-    log.info(f"학습 라벨 | 양성(사고 격자 2021-23): {pos} | 음성: {neg} | scale_pos_weight={spw:.1f}")
+    log.info(f"학습 타겟 | 사고 횟수 총합: {y_train_count.sum()}건 (포아송 회귀 모델 적용)")
 
     # Optuna
     log.info(f"Optuna HPO 중 (n_trials={n_trials})...")
-    best_params = _tune(X, y_train_label, n_trials=n_trials)
+    best_params = _tune(X, y_train_count, n_trials=n_trials)
     best_params.update({"lr": best_params.pop("lr", 0.1)})
 
-    model = xgb.XGBClassifier(
+    model = xgb.XGBRegressor(
         max_depth=best_params.get("max_depth", 5),
         learning_rate=best_params.get("learning_rate", best_params.get("lr", 0.1)),
         n_estimators=best_params.get("n_est", 200),
         subsample=best_params.get("sub", 0.8),
         colsample_bytree=best_params.get("col", 0.8),
         min_child_weight=best_params.get("mcw", 1),
-        scale_pos_weight=spw,
-        eval_metric="auc", use_label_encoder=False,
+        objective="count:poisson", eval_metric="poisson-nloglik",
         tree_method="hist", random_state=42,
     )
-    model.fit(X, y_train_label)
+    model.fit(X, y_train_count)
 
-    # ── 전체 격자 위험도 예측 ────────────────────────────────────
-    proba = model.predict_proba(X)[:, 1]
-    risk_scores = (proba * 100).clip(0, 100)
+    # ── 전체 격자 위험도 예측 (발생 예상 건수) ───────────────
+    preds = model.predict(X)
+    max_p = preds.max()
+    # 0~100점 만점의 Risk Score로 Min-Max 스케일링
+    risk_scores = (preds / max_p * 100).clip(0, 100) if max_p > 0 else preds
+    
     grid_df = grid_df.copy()
     grid_df["risk_score"] = risk_scores
 

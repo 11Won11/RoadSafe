@@ -138,9 +138,11 @@ def run_cross_city_eval(target_city: str = "Busan", city_code: str = "busan"):
     # 입력 데이터 구성
     X_target = grid_df[feature_names].fillna(0)
     
-    # 예측 수행
-    proba = model.predict_proba(X_target)[:, 1]
-    grid_df["risk_score"] = (proba * 100).clip(0, 100)
+    # 예측 수행 (Poisson Regression: 예상 사고 건수)
+    preds = model.predict(X_target)
+    max_p = preds.max()
+    # 0~100점 만점의 Risk Score로 Min-Max 스케일링
+    grid_df["risk_score"] = (preds / max_p * 100).clip(0, 100) if max_p > 0 else preds
     
     # 평가 (PAI 및 AUROC)
     # 여기서는 시간적 구분이 아닌, 도시 전체 데이터(label_all)로 예측 능력을 봅니다.
