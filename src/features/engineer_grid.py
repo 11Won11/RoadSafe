@@ -32,9 +32,23 @@ DEFAULT_FEATURE_VALS = {
 
 
 def _extract_spatial_features(lat: float, lon: float, G, nodes) -> dict:
-    """단일 격자 중심점의 OSMnx 공간 Feature 추출 (engineer_point.py 공유 로직)"""
+    """단일 격자 중심점의 OSMnx 공간 Feature 추출"""
     feat = {}
     BUFFERS = [100, 200, 500]
+    
+    # ── [속도 최적화] 반경 500m 내에 노드가 아예 없으면 즉시 종료 (산/강) ──
+    nearby_500m = nodes[
+        ((nodes["y"] - lat).abs() < 500 / 111000) &
+        ((nodes["x"] - lon).abs() < 500 / 88000)
+    ]
+    if len(nearby_500m) == 0:
+        for r in BUFFERS: feat[f"intersection_count_{r}m"] = 0
+        feat.update({"node_degree": 0, "dist_to_nearest_intersection": 9999,
+                     "avg_lanes": 1.0, "max_lanes": 1.0,
+                     "is_primary_road": 0, "is_secondary_road": 0,
+                     "is_residential_road": 0, "is_intersection": 0})
+        return feat
+
     try:
         for r in BUFFERS:
             nearby = nodes[

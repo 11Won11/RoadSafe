@@ -5,6 +5,7 @@ PM 사고 데이터 로더 — 전국 광역시 통합 버전
 """
 import pandas as pd
 import logging
+import unicodedata
 from pathlib import Path
 
 log = logging.getLogger(__name__)
@@ -67,8 +68,10 @@ def load_pm_data(nationwide: bool = True) -> pd.DataFrame:
             nationwide = False
         else:
             for fpath in xlsx_files:
-                # 파일명에서 도시 추출 (예: "서울_통합_2021-2024.xlsx" → "서울")
+                # 파일명에서 도시 추출 (macOS NFD 자소 분리 문제 해결)
                 city_key = fpath.stem.split("_")[0]
+                city_key = unicodedata.normalize("NFC", city_key)
+                
                 city_code = CITY_MAP.get(city_key, city_key)
                 df_city = _load_xlsx(fpath, city_code)
                 log.info(f"{fpath.name}: {len(df_city)}행 ({city_code})")

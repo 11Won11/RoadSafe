@@ -29,7 +29,6 @@ for font in fm.findSystemFonts():
         break
 plt.rcParams["axes.unicode_minus"] = False
 
-GRID_FEAT_CACHE = Path("data/interim/grid_features_with_labels.csv")
 GRID_MODEL_PATH = Path("data/interim/xgb_grid_model.pkl")
 GRID_LAT = 0.0045
 GRID_LON = 0.0056
@@ -40,37 +39,47 @@ GRID_LON = 0.0056
 def build_grid_dataset(
     acc_df: pd.DataFrame,
     force: bool = False,
+    city_name: str = "Seoul"
 ) -> pd.DataFrame:
     """
-    서울 전역 격자 × OSMnx 공간 Feature + 사고 건수 라벨 DataFrame 생성.
+    대상 도시(city_name) 전역 격자 × OSMnx 공간 Feature + 사고 건수 라벨 DataFrame 생성.
     acc_df에는 '위도', '경도', '발생연도' 컬럼이 있어야 함.
-
-    캐시: data/interim/grid_features_with_labels.csv
     """
     import sys
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-    from src.features.engineer_grid import _extract_spatial_features, SEOUL_BBOX
+    from src.features.engineer_grid import _extract_spatial_features
     import osmnx as ox
 
-    if GRID_FEAT_CACHE.exists() and not force:
-        log.info(f"격자 Feature 캐시 로드: {GRID_FEAT_CACHE}")
-        return pd.read_csv(GRID_FEAT_CACHE)
+    grid_feat_cache = Path(f"data/interim/grid_features_with_labels_{city_name.lower()}.csv")
+    if grid_feat_cache.exists() and not force:
+        log.info(f"격자 Feature 캐시 로드: {grid_feat_cache}")
+        return pd.read_csv(grid_feat_cache)
+
+    # 도시 BBOX 추출
+    log.info(f"{city_name} Bounding Box 추출 중...")
+    try:
+        gdf_city = ox.geocode_to_gdf(f"{city_name}, South Korea")
+        bbox = gdf_city.bounds.iloc[0]
+        lat_min_b, lat_max_b, lon_min_b, lon_max_b = bbox.miny, bbox.maxy, bbox.minx, bbox.maxx
+    except Exception as e:
+        log.warning(f"BBOX 추출 실패, 기본 서울 BBOX 사용. ({e})")
+        lat_min_b, lat_max_b, lon_min_b, lon_max_b = 37.413294, 37.715133, 126.734086, 127.269311
 
     # 도로망 로드
-    graph_cache = Path("data/interim/seoul_graph.graphml")
+    graph_cache = Path(f"data/interim/{city_name.lower()}_graph.graphml")
     if graph_cache.exists():
         G = ox.load_graphml(graph_cache)
     else:
-        G = ox.graph_from_place("Seoul, South Korea", network_type="drive")
+        G = ox.graph_from_place(f"{city_name}, South Korea", network_type="drive")
         ox.save_graphml(G, graph_cache)
     nodes, _ = ox.graph_to_gdfs(G)
 
     # 격자 목록 생성
     grid_cells = []
-    lat = SEOUL_BBOX["lat_min"]
-    while lat < SEOUL_BBOX["lat_max"]:
-        lon = SEOUL_BBOX["lon_min"]
-        while lon < SEOUL_BBOX["lon_max"]:
+    lat = lat_min_b
+    while lat < lat_max_b:
+        lon = lon_min_b
+        while lon < lon_max_b:
             cy = lat + GRID_LAT / 2
             cx = lon + GRID_LON / 2
             grid_cells.append((lat, lon, cy, cx))
@@ -125,9 +134,14 @@ def build_grid_dataset(
     df["label_2021_23"] = (df["acc_2021_23"] > 0).astype(int)
     df["label_2024"]    = (df["acc_2024"] > 0).astype(int)
 
-    GRID_FEAT_CACHE.parent.mkdir(parents=True, exist_ok=True)
-    df.to_csv(GRID_FEAT_CACHE, index=False)
-    log.info(f"격자 Feature 저장: {GRID_FEAT_CACHE} ({len(df)}개 격자)")
+    # ── POI 유동인구 Proxy 연동 ────────────────────────────────
+    from src.features.engineer_poi import download_city_pois, assign_pois_to_grids
+    poi_df = download_city_pois(city_name=city_name, force=False)
+    df = assign_pois_to_grids(df, poi_df, GRID_LAT, GRID_LON)
+
+    grid_feat_cache.parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(grid_feat_cache, index=False)
+    log.info(f"격자 Feature 저장: {grid_feat_cache} ({len(df)}개 격자)")
     log.info(f"  사고 있는 격자: {df['label_all'].sum()} / {len(df)}")
     return df
 
@@ -139,6 +153,9 @@ SPATIAL_FEAT_COLS = [
     "node_degree", "dist_to_nearest_intersection",
     "avg_lanes", "max_lanes",
     "is_primary_road", "is_secondary_road", "is_residential_road", "is_intersection",
+    # 추가된 POI (노출량 Proxy) 특성
+    "poi_count_commercial", "poi_count_bus_stop", "poi_count_station", 
+    "poi_count_university", "poi_count_total"
 ]
 
 
@@ -152,17 +169,17 @@ def _tune(X_train, y_train, n_trials=30):
             colsample_bytree=trial.suggest_float("col", 0.5, 1.0),
             min_child_weight=trial.suggest_int("mcw", 1, 10),
         )
-        spw = (y_train == 0).sum() / max((y_train == 1).sum(), 1)
-        model = xgb.XGBClassifier(
-            **params, scale_pos_weight=spw,
-            eval_metric="auc", use_label_encoder=False, tree_method="hist", random_state=42,
+        model = xgb.XGBRegressor(
+            **params, objective="count:poisson",
+            eval_metric="poisson-nloglik", tree_method="hist", random_state=42,
         )
         from sklearn.model_selection import cross_val_score
-        return cross_val_score(model, X_train, y_train, cv=5, scoring="roc_auc", n_jobs=-1).mean()
+        # Poisson 회귀 평가 지표로 음수 RMSE 사용 (Maximize)
+        return cross_val_score(model, X_train, y_train, cv=5, scoring="neg_root_mean_squared_error", n_jobs=-1).mean()
 
     study = optuna.create_study(direction="maximize", sampler=optuna.samplers.TPESampler(seed=42))
     study.optimize(objective, n_trials=n_trials, show_progress_bar=False)
-    log.info(f"Optuna | Best AUROC={study.best_value:.4f}")
+    log.info(f"Optuna | Best Neg_RMSE={study.best_value:.4f}")
     return study.best_params
 
 
@@ -186,36 +203,38 @@ def train_grid_model(
     feat_cols = [c for c in SPATIAL_FEAT_COLS if c in grid_df.columns]
     log.info(f"사용 Feature: {feat_cols}")
 
-    # ── 훈련: 2021-2023 사고 기준 ───────────────────────────────
+    # ── 훈련: 2021-2023 사고 '발생 횟수(Count)' 기준 (포아송 회귀) ──
     X = grid_df[feat_cols].fillna(0)
-    y_train_label = grid_df["label_2021_23"]
-    y_all_label   = grid_df["label_all"]
+    y_train_count = grid_df["acc_2021_23"]
 
-    pos = y_train_label.sum(); neg = (y_train_label == 0).sum()
-    spw = neg / max(pos, 1)
-    log.info(f"학습 라벨 | 양성(사고 격자 2021-23): {pos} | 음성: {neg} | scale_pos_weight={spw:.1f}")
+    log.info(f"학습 타겟 | 사고 횟수 총합: {y_train_count.sum()}건 (포아송 회귀 모델 적용)")
 
     # Optuna
     log.info(f"Optuna HPO 중 (n_trials={n_trials})...")
-    best_params = _tune(X, y_train_label, n_trials=n_trials)
+    best_params = _tune(X, y_train_count, n_trials=n_trials)
     best_params.update({"lr": best_params.pop("lr", 0.1)})
 
-    model = xgb.XGBClassifier(
+    model = xgb.XGBRegressor(
         max_depth=best_params.get("max_depth", 5),
         learning_rate=best_params.get("learning_rate", best_params.get("lr", 0.1)),
         n_estimators=best_params.get("n_est", 200),
         subsample=best_params.get("sub", 0.8),
         colsample_bytree=best_params.get("col", 0.8),
         min_child_weight=best_params.get("mcw", 1),
-        scale_pos_weight=spw,
-        eval_metric="auc", use_label_encoder=False,
+        objective="count:poisson", eval_metric="poisson-nloglik",
         tree_method="hist", random_state=42,
     )
-    model.fit(X, y_train_label)
+    model.fit(X, y_train_count)
 
-    # ── 전체 격자 위험도 예측 ────────────────────────────────────
-    proba = model.predict_proba(X)[:, 1]
-    risk_scores = (proba * 100).clip(0, 100)
+    # ── 전체 격자 위험도 예측 (발생 예상 건수) ───────────────
+    preds = model.predict(X)
+    robust_max = np.percentile(preds, 99)
+    if robust_max == 0:
+        robust_max = preds.max()
+    
+    # 0~100점 만점의 Risk Score로 Robust 스케일링 (상위 1% 아웃라이어 클리핑)
+    risk_scores = (preds / robust_max * 100).clip(0, 100) if robust_max > 0 else preds
+    
     grid_df = grid_df.copy()
     grid_df["risk_score"] = risk_scores
 
