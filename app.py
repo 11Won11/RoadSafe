@@ -135,7 +135,7 @@ def get_risk_label(score):
 total_grids = len(grid_df)
 target_grids = grid_df["is_target"].sum()
 
-label_col = "label_2024" if target_city == "seoul" else "label_all"
+label_col = "label_2025" if target_city == "seoul" else "label_all"
 if label_col not in grid_df.columns:
     label_col = "acc_total" if "acc_total" in grid_df.columns else "label_all"
 

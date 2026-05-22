@@ -117,8 +117,8 @@ def build_grid_dataset(
             (acc_lon >= lon_min) & (acc_lon < lon_max_cell)
         )
         total_acc = in_cell.sum()
-        acc_2021_23 = ((acc_year <= 2023) & in_cell).sum()
-        acc_2024 = ((acc_year == 2024) & in_cell).sum()
+        acc_2021_24 = ((acc_year <= 2024) & in_cell).sum()
+        acc_2025 = ((acc_year == 2025) & in_cell).sum()
 
         records.append({
             "lat_min": lat_min,
@@ -126,15 +126,15 @@ def build_grid_dataset(
             "cy": cy,
             "cx": cx,
             "acc_total": int(total_acc),
-            "acc_2021_23": int(acc_2021_23),
-            "acc_2024": int(acc_2024),
+            "acc_2021_24": int(acc_2021_24),
+            "acc_2025": int(acc_2025),
             **spatial,
         })
 
     df = pd.DataFrame(records)
     df["label_all"]     = (df["acc_total"] > 0).astype(int)
-    df["label_2021_23"] = (df["acc_2021_23"] > 0).astype(int)
-    df["label_2024"]    = (df["acc_2024"] > 0).astype(int)
+    df["label_2021_24"] = (df["acc_2021_24"] > 0).astype(int)
+    df["label_2025"]    = (df["acc_2025"] > 0).astype(int)
 
     # ── POI 유동인구 Proxy 연동 ────────────────────────────────
     from src.features.engineer_poi import download_city_pois, assign_pois_to_grids
@@ -205,9 +205,9 @@ def train_grid_model(
     feat_cols = [c for c in SPATIAL_FEAT_COLS if c in grid_df.columns]
     log.info(f"사용 Feature: {feat_cols}")
 
-    # ── 훈련: 2021-2023 사고 '발생 횟수(Count)' 기준 (포아송 회귀) ──
+    # ── 훈련: 2021-2024 사고 '발생 횟수(Count)' 기준 (포아송 회귀) ──
     X = grid_df[feat_cols].fillna(0)
-    y_train_count = grid_df["acc_2021_23"]
+    y_train_count = grid_df["acc_2021_24"]
 
     log.info(f"학습 타겟 | 사고 횟수 총합: {y_train_count.sum()}건 (포아송 회귀 모델 적용)")
 
@@ -240,24 +240,24 @@ def train_grid_model(
     grid_df = grid_df.copy()
     grid_df["risk_score"] = risk_scores
 
-    # ── 시간적 검증: 2024 사고 기준 PAI ─────────────────────────
-    log.info("\n--- 시간적 검증 (2024 사고 기준) ---")
-    auroc_2024, pai_2024 = _eval_and_print(grid_df, label_col="label_2024", count_col="acc_2024", past_count_col="acc_2021_23", tag="2024년 사고")
+    # ── 시간적 검증: 2025 사고 기준 PAI ─────────────────────────
+    log.info("\n--- 시간적 검증 (2025 사고 기준) ---")
+    auroc_2025, pai_2025 = _eval_and_print(grid_df, label_col="label_2025", count_col="acc_2025", past_count_col="acc_2021_24", tag="2025년 사고")
 
     # ── 전체 기준 AUROC ──────────────────────────────────────────
     log.info("--- 전체 기간 기준 ---")
-    auroc_all, pai_all = _eval_and_print(grid_df, label_col="label_all", count_col="acc_total", past_count_col="acc_2021_23", tag="전체(2021-24)")
+    auroc_all, pai_all = _eval_and_print(grid_df, label_col="label_all", count_col="acc_total", past_count_col="acc_2021_24", tag="전체(2021-25)")
 
     # ── 지표 저장 (보고서/논문용) ──────────────────────────────
-    pai_2024.to_csv(f"{output_dir}/pai_metrics_2024.csv", index=False)
+    pai_2025.to_csv(f"{output_dir}/pai_metrics_2025.csv", index=False)
     pai_all.to_csv(f"{output_dir}/pai_metrics_all.csv", index=False)
     
     with open(f"{output_dir}/evaluation_summary.txt", "w", encoding="utf-8") as f:
         f.write("=== SAFERIDE 격자 위험도 모델 평가 요약 ===\n\n")
-        f.write(f"[1] 2024년 시간적 검증 (미래 예측)\n")
-        f.write(f"  - AUROC: {auroc_2024:.4f}\n")
-        f.write(f"  - PAI@10%: {pai_2024.loc[9, 'pai']:.2f}\n")
-        f.write(f"  - PAI@20%: {pai_2024.loc[19, 'pai']:.2f}\n\n")
+        f.write(f"[1] 2025년 시간적 검증 (미래 예측)\n")
+        f.write(f"  - AUROC: {auroc_2025:.4f}\n")
+        f.write(f"  - PAI@10%: {pai_2025.loc[9, 'pai']:.2f}\n")
+        f.write(f"  - PAI@20%: {pai_2025.loc[19, 'pai']:.2f}\n\n")
         f.write(f"[2] 전체(2021-2024) 데이터 기준\n")
         f.write(f"  - AUROC: {auroc_all:.4f}\n")
         f.write(f"  - PAI@10%: {pai_all.loc[9, 'pai']:.2f}\n")
