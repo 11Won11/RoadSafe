@@ -8,6 +8,8 @@ osmnx==1.9.3
 geopandas==0.14.4
 shapely==2.0.4
 folium==0.20.0
+libpysal
+esda
 
 # Machine Learning & Optimization
 xgboost==2.0.3

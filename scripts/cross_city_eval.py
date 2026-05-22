@@ -150,7 +150,7 @@ def run_cross_city_eval(target_city: str = "Busan", city_code: str = "busan"):
     
     # 평가 (PAI 및 AUROC)
     # 여기서는 시간적 구분이 아닌, 도시 전체 데이터(label_all)로 예측 능력을 봅니다.
-    auroc, pai_df = _eval_and_print(grid_df, label_col="label_all", tag=f"Cross-City: {target_city}")
+    auroc, pai_df = _eval_and_print(grid_df, label_col="label_all", count_col="acc_total", past_count_col="acc_2021_23", tag=f"Cross-City: {target_city}")
     
     # 지표 저장
     output_dir = Path("outputs")
