@@ -98,6 +98,17 @@ def load_pm_data(nationwide: bool = True) -> pd.DataFrame:
             dfs.append(df)
         else:
             raise FileNotFoundError(f"데이터 파일을 찾을 수 없습니다: {NATIONWIDE_DIR}")
+            
+        # 서울 2025 데이터 추가 로드
+        seoul_2025 = NATIONWIDE_DIR / "서울특별시-2025.csv"
+        if seoul_2025.exists():
+            try:
+                df_25 = pd.read_csv(seoul_2025, encoding="utf-8")
+                df_25["city"] = "seoul"
+                log.info(f"{seoul_2025.name}: {len(df_25)}행 (서울 2025 CSV 폴백 추가)")
+                dfs.append(df_25)
+            except Exception as e:
+                log.error(f"서울 2025 데이터 폴백 로드 실패: {e}")
 
     df = pd.concat(dfs, ignore_index=True)
     log.info(f"합산 총 행수: {len(df)}")
