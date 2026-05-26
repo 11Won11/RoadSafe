@@ -63,6 +63,15 @@ def build_grid_dataset(
             df = assign_cctv_to_grids(df, GRID_LAT, GRID_LON)
             df.to_csv(grid_feat_cache, index=False)
             log.info(f"CCTV Feature 추가 완료 → 캐시 갱신: {grid_feat_cache}")
+
+        # 경사도 컬럼이 없으면 추가 후 캐시 갱신
+        if "elev_mean" not in df.columns:
+            log.info("경사 Feature 누락 → 추가 중...")
+            from src.features.engineer_slope import assign_slope_to_grids
+            df = assign_slope_to_grids(df, GRID_LAT, GRID_LON)
+            df.to_csv(grid_feat_cache, index=False)
+            log.info(f"경사 Feature 추가 완료 → 캐시 갱신: {grid_feat_cache}")
+
         return df
 
     # 도시 BBOX 추출
@@ -153,6 +162,10 @@ def build_grid_dataset(
     from src.features.engineer_cctv import assign_cctv_to_grids
     df = assign_cctv_to_grids(df, GRID_LAT, GRID_LON)
 
+    # ── 지형/경사도 Feature 연동 ───────────────────────────
+    from src.features.engineer_slope import assign_slope_to_grids
+    df = assign_slope_to_grids(df, GRID_LAT, GRID_LON)
+
     grid_feat_cache.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(grid_feat_cache, index=False)
     log.info(f"격자 Feature 저장: {grid_feat_cache} ({len(df)}개 격자)")
@@ -172,6 +185,8 @@ SPATIAL_FEAT_COLS = [
     "poi_count_university", "poi_count_total",
     # CCTV (감시/억제 효과) 특성
     "cctv_count_total", "cctv_count_traffic", "cctv_count_child",
+    # 지형/경사도 특성
+    "elev_mean", "elev_range",
 ]
 
 
