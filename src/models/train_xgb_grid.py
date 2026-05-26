@@ -55,7 +55,15 @@ def build_grid_dataset(
     grid_feat_cache = Path(f"data/interim/grid_features_with_labels_{city_name.lower()}.csv")
     if grid_feat_cache.exists() and not force:
         log.info(f"격자 Feature 캐시 로드: {grid_feat_cache}")
-        return pd.read_csv(grid_feat_cache)
+        df = pd.read_csv(grid_feat_cache)
+        # CCTV 컬럼이 없으면 추가 후 캐시 갱신 (OSMnx 재계산 없이)
+        if "cctv_count_total" not in df.columns:
+            log.info("CCTV Feature 누락 → 추가 중...")
+            from src.features.engineer_cctv import assign_cctv_to_grids
+            df = assign_cctv_to_grids(df, GRID_LAT, GRID_LON)
+            df.to_csv(grid_feat_cache, index=False)
+            log.info(f"CCTV Feature 추가 완료 → 캐시 갱신: {grid_feat_cache}")
+        return df
 
     # 도시 BBOX 추출
     log.info(f"{city_name} Bounding Box 추출 중...")
@@ -141,6 +149,10 @@ def build_grid_dataset(
     poi_df = download_city_pois(city_name=city_name, force=False)
     df = assign_pois_to_grids(df, poi_df, GRID_LAT, GRID_LON)
 
+    # ── CCTV 감시/억제 Feature 연동 ───────────────────────────
+    from src.features.engineer_cctv import assign_cctv_to_grids
+    df = assign_cctv_to_grids(df, GRID_LAT, GRID_LON)
+
     grid_feat_cache.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(grid_feat_cache, index=False)
     log.info(f"격자 Feature 저장: {grid_feat_cache} ({len(df)}개 격자)")
@@ -155,9 +167,11 @@ SPATIAL_FEAT_COLS = [
     "node_degree", "dist_to_nearest_intersection",
     "avg_lanes", "max_lanes",
     "is_primary_road", "is_secondary_road", "is_residential_road", "is_intersection",
-    # 추가된 POI (노출량 Proxy) 특성
-    "poi_count_commercial", "poi_count_bus_stop", "poi_count_station", 
-    "poi_count_university", "poi_count_total"
+    # POI (노출량 Proxy) 특성
+    "poi_count_commercial", "poi_count_bus_stop", "poi_count_station",
+    "poi_count_university", "poi_count_total",
+    # CCTV (감시/억제 효과) 특성
+    "cctv_count_total", "cctv_count_traffic", "cctv_count_child",
 ]
 
 
