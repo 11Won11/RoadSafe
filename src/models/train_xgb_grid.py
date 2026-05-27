@@ -218,7 +218,7 @@ SPATIAL_FEAT_COLS = [
     "is_primary_road", "is_secondary_road", "is_residential_road", "is_intersection",
     # POI (노출량 Proxy) 특성
     "poi_count_commercial", "poi_count_bus_stop", "poi_count_station",
-    "poi_count_university", "poi_count_total",
+    "poi_count_university",
     # CCTV (감시/억제 효과) 특성
     "cctv_count_total", "cctv_count_traffic", "cctv_count_child",
     # 지형/경사도 특성
