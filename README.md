@@ -2,9 +2,9 @@
 
 ![Python](https://img.shields.io/badge/Python-3.10-blue?style=for-the-badge&logo=python)
 ![XGBoost](https://img.shields.io/badge/XGBoost-Poisson_Regression-red?style=for-the-badge)
-![AUROC](https://img.shields.io/badge/AUROC_(2025)-0.7908-blueviolet?style=for-the-badge)
-![PAI](https://img.shields.io/badge/PAI@10%25_(Seoul)-2.91-brightgreen?style=for-the-badge)
-![Features](https://img.shields.io/badge/Features-21개_공간변수-orange?style=for-the-badge)
+![AUROC](https://img.shields.io/badge/AUROC_(2025)-0.8024-blueviolet?style=for-the-badge)
+![PAI](https://img.shields.io/badge/PAI@10%25_(Seoul)-2.95-brightgreen?style=for-the-badge)
+![Features](https://img.shields.io/badge/Features-26개_공간변수-orange?style=for-the-badge)
 ![Folium](https://img.shields.io/badge/Folium-Grid_Heatmap-green?style=for-the-badge)
 
 > **"사고가 나기 전에 위험한 공간을 먼저 바꿉니다."**
@@ -18,20 +18,20 @@
 
 | 항목 | 내용 |
 |---|---|
-| **모델 구조** | **격자 수준(Grid-level) XGBoost Poisson Regressor** (500m × 500m, 21개 Feature) |
+| **모델 구조** | **격자 수준(Grid-level) XGBoost Poisson Regressor** (500m × 500m, 26개 Feature) |
 | **시간적 검증** | 2021~2024 데이터 학습 → **2025년 미래 실제 사고 예측 검증 (완전 홀드아웃)** |
 | **엄밀한 통제** | 산·강 등 PM 주행 불가(노출량 Zero) 구역 선제 필터링 → 4,575개 → 2,426개 격자 |
-| **미래 예측 AUROC** | **0.7908** (2025년 미래 검증 기준) |
-| **전체 기간 AUROC** | **0.8910** (2021~2025년 전체 기준) |
+| **미래 예측 AUROC** | **0.8024** (2025년 미래 검증 기준) |
+| **전체 기간 AUROC** | **0.9355** (2021~2025년 전체 기준) |
 | **공간 전이성** | **AUROC 0.9105** (서울 학습 → 부산 Zero-shot 예측) |
-| **실용성 지표 PAI** | 상위 10% 단속 시 서울 사고 **29.1% 예방** / 상위 50% 단속 시 **90.4% 예방** |
+| **실용성 지표 PAI** | 상위 10% 단속 시 서울 사고 **29.5% 예방** / 상위 50% 단속 시 **92.0% 예방** |
 | **설명가능성** | SHAP 분석 — `intersection_count_500m`(교차로 밀도)이 1위 위험 요인으로 정량 증명 |
 
 ---
 
-## <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Light%20Bulb.png" alt="Light Bulb" width="30" height="30" style="vertical-align: middle;"/> 모델 Feature 구성 (21개)
+## <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Light%20Bulb.png" alt="Light Bulb" width="30" height="30" style="vertical-align: middle;"/> 모델 Feature 구성 (26개)
 
-모델은 세 가지 데이터 소스에서 추출한 21개의 공간 Feature를 사용합니다.
+모델은 다각도의 공간 빅데이터에서 추출한 26개의 공간 Feature를 사용합니다.
 
 ### 🛣️ 1. 도로망 인프라 Feature (OSMnx 기반, 16개)
 | Feature | 설명 |
@@ -65,6 +65,15 @@
 | `elev_mean` | 격자 내 평균 표고 (m) | 서울시 표고 76,580개 측정점 |
 | `elev_range` | 격자 내 최고-최저 표고 차 (m) | 경사도 대리변수. 클수록 급경사 → PM 제동 위험 ↑ |
 
+### 🚦 4. 교통 안전 인프라 Feature (5개)
+| Feature | 설명 | 데이터 출처 |
+|---|---|---|
+| `signal_count_total` | 격자 내 전체 신호등 수 | 서울시 신호등 표준데이터 (65,001개) |
+| `signal_count_pedestrian` | 보행등 수 | 보행자 횡단 충돌 위험 대리변수 |
+| `signal_count_vehicle` | 차량용 3색/4색 신호등 수 | 교차로 복잡도 및 차량 교통량 대리변수 |
+| `signal_has_audio` | 음향신호기 수 | 보행자 보호 구역 대리변수 |
+| `crosswalk_count` | 횡단보도 노드 수 | 서울시 대로변 횡단보도 위치정보 (19,518개) |
+
 ---
 
 ## <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Hammer%20and%20Wrench.png" alt="Hammer and Wrench" width="30" height="30" style="vertical-align: middle;"/> 파이프라인 아키텍처
@@ -78,8 +87,10 @@
          └─ data/interim/grid_features_with_labels_seoul.csv
 
 [STEP 3] 보완 Feature 자동 병합 (캐시 기반, 누락 시 자동 갱신)
-         ├─ CCTV Feature   ← src/features/engineer_cctv.py
-         └─ 경사도 Feature  ← src/features/engineer_slope.py
+         ├─ CCTV Feature    ← src/features/engineer_cctv.py
+         ├─ 경사도 Feature   ← src/features/engineer_slope.py
+         ├─ 신호등 Feature   ← src/features/engineer_signal.py
+         └─ 횡단보도 Feature ← src/features/engineer_crosswalk.py
 
 [STEP 4] 산/강/외곽 비도로 구역 필터링 (4,575 → 2,426 격자)
 
@@ -162,15 +173,15 @@ python scripts/cross_city_eval.py
 
 ### 2025년 미래 예측 검증 (시간적 홀드아웃)
 
-| 지표 | 기본 (16 Feature) | + CCTV (19) | **+ 경사도 (21, 최종)** |
-|---|:---:|:---:|:---:|
-| **AUROC** | 0.7468 | 0.7863 | **0.7908** |
-| **MAE** | 1.222건 | 0.846건 | 0.997건 |
-| **RMSE** | 1.607건 | 1.175건 | 1.352건 |
-| **포착률 k=10%** | 21.8% | 28.0% | **29.1%** |
-| **포착률 k=30%** | — | 65.1% | **65.5%** |
-| **포착률 k=50%** | 85.1% | 87.4% | **90.4%** |
-| **RRI k=50%** | 1.10 | 1.13 | **1.17** |
+| 지표 | 기본 (16) | + CCTV (19) | + 경사도 (21) | **+ 인프라 (26, 최종)** |
+|---|:---:|:---:|:---:|:---:|
+| **AUROC** | 0.7468 | 0.7863 | 0.7908 | **0.8024** |
+| **MAE** | 1.222건 | 0.846건 | 0.997건 | **0.758건** |
+| **RMSE** | 1.607건 | 1.175건 | 1.352건 | **1.122건** |
+| **포착률 k=10%** | 21.8% | 28.0% | 29.1% | **29.5%** |
+| **포착률 k=30%** | — | 65.1% | 65.5% | **66.7%** |
+| **포착률 k=50%** | 85.1% | 87.4% | 90.4% | **92.0%** |
+| **RRI k=50%** | 1.10 | 1.13 | 1.17 | **1.19** |
 
 ### 공간 전이성 검증 (서울 학습 → 부산 Zero-shot)
 
@@ -198,7 +209,9 @@ RoadSafe/
 │   │   ├── engineer_osmnx.py   # OSMnx 도로망 Feature 추출
 │   │   ├── engineer_poi.py     # POI(관심지점) Feature 추출
 │   │   ├── engineer_cctv.py    # CCTV Feature 추출 및 격자 매핑
-│   │   └── engineer_slope.py   # 서울시 표고/경사도 Feature 추출
+│   │   ├── engineer_slope.py   # 서울시 표고/경사도 Feature 추출
+│   │   ├── engineer_signal.py  # 서울시 신호등 Feature 매핑
+│   │   └── engineer_crosswalk.py # 서울시 횡단보도 Feature 매핑
 │   ├── models/
 │   │   └── train_xgb_grid.py   # XGBoost 학습 및 평가 코어
 │   ├── evaluation/             # PAI, AUROC 평가 모듈
