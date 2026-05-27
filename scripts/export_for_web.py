@@ -30,7 +30,7 @@ RISK_FEAT_COLS = [
     "cctv_count_total", "cctv_count_traffic", "cctv_count_child",
     "elev_mean", "elev_range",
     "signal_count_total", "signal_count_pedestrian", "signal_count_vehicle",
-    "signal_has_audio", "crosswalk_count"
+    "signal_has_audio", "crosswalk_count", "towing_count"
 ]
 
 
@@ -96,6 +96,7 @@ def export_grid_geojson():
                 "avg_lanes":    round(float(row.get("avg_lanes", 0)), 1),
                 "poi_total":    int(row.get("poi_count_total", 0)),
                 "intersect_500":int(row.get("intersection_count_500m", 0)),
+                "towing_cnt":   int(row.get("towing_count", 0)),
             }
         }
         features.append(feature)
@@ -153,6 +154,7 @@ def export_shap_importance():
         "signal_count_vehicle":          "차량 신호등 수",
         "signal_has_audio":              "음향 신호기 수",
         "crosswalk_count":               "횡단보도 수",
+        "towing_count":                  "킥보드 견인 수",
     }
 
     shap_data = sorted([
