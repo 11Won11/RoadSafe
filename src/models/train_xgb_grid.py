@@ -80,6 +80,14 @@ def build_grid_dataset(
             df.to_csv(grid_feat_cache, index=False)
             log.info(f"신호등 Feature 추가 완료 → 캐시 갱신: {grid_feat_cache}")
 
+        # 횡단보도 컬럼이 없으면 추가 후 캐시 갱신
+        if "crosswalk_count" not in df.columns:
+            log.info("횡단보도 Feature 누락 → 추가 중...")
+            from src.features.engineer_crosswalk import assign_crosswalk_to_grids
+            df = assign_crosswalk_to_grids(df, GRID_LAT, GRID_LON)
+            df.to_csv(grid_feat_cache, index=False)
+            log.info(f"횡단보도 Feature 추가 완료 → 캐시 갱신: {grid_feat_cache}")
+
         return df
 
     # 도시 BBOX 추출
@@ -178,6 +186,10 @@ def build_grid_dataset(
     from src.features.engineer_signal import assign_signal_to_grids
     df = assign_signal_to_grids(df, GRID_LAT, GRID_LON)
 
+    # ── 횡단보도 Feature 연동 ──────────────────────────────
+    from src.features.engineer_crosswalk import assign_crosswalk_to_grids
+    df = assign_crosswalk_to_grids(df, GRID_LAT, GRID_LON)
+
     grid_feat_cache.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(grid_feat_cache, index=False)
     log.info(f"격자 Feature 저장: {grid_feat_cache} ({len(df)}개 격자)")
@@ -202,6 +214,8 @@ SPATIAL_FEAT_COLS = [
     # 신호등 (교통 안전 인프라) 특성
     "signal_count_total", "signal_count_pedestrian",
     "signal_count_vehicle", "signal_has_audio",
+    # 횡단보도 특성
+    "crosswalk_count",
 ]
 
 
