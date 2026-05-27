@@ -1,72 +1,74 @@
-import { useEffect, useState } from "react";
-import "./index.css";
-import { Navbar }          from "./components/Navbar";
-import { HeroSection }     from "./components/HeroSection";
-import { RiskMap }         from "./components/RiskMap";
-import { AnalysisSection } from "./components/AnalysisSection";
-import { FeaturesSection } from "./components/FeaturesSection";
+import React, { useState, useEffect } from 'react';
+import Navbar from './components/Navbar';
+import Sidebar from './components/Sidebar';
+import RiskOverviewPanel from './components/RiskOverviewPanel';
+import AnalyticsPanel from './components/AnalyticsPanel';
+import { RiskMap } from './components/RiskMap';
 
-function StatsBar({ metrics }) {
-  const stats = [
-    { value: metrics?.grid_count    ?? 2426,   suffix: "개",  label: "분석 격자 수" },
-    { value: metrics?.accident_count ?? 2132,   suffix: "건",  label: "PM 사고 건수" },
-    { value: "0.7908",                          suffix: "",    label: "AUROC (2025)" },
-    { value: metrics?.high_risk_grids ?? 53,    suffix: "개",  label: "초고위험 격자" },
-  ];
-  return (
-    <div className="container" style={{ marginTop: "-1px", position: "relative", zIndex: 10 }}>
-      <div className="stats-bar">
-        {stats.map(s => (
-          <div className="stat-item" key={s.label}>
-            <div className="stat-value" style={{ color: s.label.includes("AUROC") ? "var(--accent)" : "var(--text-primary)" }}>
-              {s.value}{s.suffix}
-            </div>
-            <div className="stat-label">{s.label}</div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function Footer() {
-  return (
-    <footer className="footer">
-      <div className="container">
-        <p style={{ marginBottom: 8 }}>
-          🛴 <strong>SAFERIDE</strong> — PM 사고 공간 위험도 예측 플랫폼
-        </p>
-        <p>
-          XGBoost · OSMnx · CCTV · 지형 데이터 기반 | 서울시 500m 격자 분석 |{" "}
-          <a href="https://github.com/11Won11/RoadSafe" target="_blank" rel="noreferrer">
-            GitHub ↗
-          </a>
-        </p>
-      </div>
-    </footer>
-  );
-}
-
-export default function App() {
+function App() {
+  const [geoData, setGeoData] = useState(null);
   const [metrics, setMetrics] = useState(null);
-  const [shap,    setShap]    = useState(null);
 
   useEffect(() => {
-    fetch("/data/metrics_summary.json").then(r => r.json()).then(setMetrics);
-    fetch("/data/shap_importance.json").then(r => r.json()).then(setShap);
+    // Load GeoJSON
+    fetch('/data/risk_grid_seoul.geojson')
+      .then(res => res.json())
+      .then(data => setGeoData(data))
+      .catch(err => console.error("Error loading geojson", err));
+
+    // Load Metrics
+    fetch('/data/metrics_summary.json')
+      .then(res => res.json())
+      .then(data => setMetrics(data))
+      .catch(err => console.error("Error loading metrics", err));
   }, []);
 
   return (
-    <div className="app">
+    <div className="bg-background text-on-surface min-h-screen overflow-hidden selection:bg-primary-container selection:text-on-primary-container">
       <Navbar />
-      <main>
-        <HeroSection metrics={metrics} />
-        <StatsBar metrics={metrics} />
-        <RiskMap />
-        <AnalysisSection metrics={metrics} shap={shap} />
-        <FeaturesSection />
+      <Sidebar />
+      
+      {/* Main Content Canvas (Map Background) */}
+      <main className="relative w-full h-screen pt-16 lg:pl-64 bg-[#0a0c10] overflow-hidden">
+        
+        {/* Full-screen Leaflet Map */}
+        <div className="absolute inset-0 z-0">
+          <RiskMap geoData={geoData} />
+        </div>
+
+        {/* Map Grid Overlay for styling (pointer-events-none) */}
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none z-[1]"></div>
+        
+        {/* Dashboard Overlay Panels */}
+        <div className="relative z-10 w-full h-full p-container-padding flex justify-between items-start gap-gutter pointer-events-none">
+          {/* Left Panel */}
+          <RiskOverviewPanel 
+            totalIncidents={metrics?.accident_count || 2132}
+            totalRisk={metrics?.grid_count || 2426}
+          />
+          
+          {/* Right Panel */}
+          <AnalyticsPanel />
+        </div>
+
+        {/* Floating Map Controls (Bottom Center) */}
+        <div className="absolute bottom-8 left-[calc(50%+128px)] -translate-x-1/2 z-20 pointer-events-auto">
+          <div className="glass-panel p-2 rounded-full flex gap-1 shadow-lg">
+            <button className="w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center text-white transition-colors" title="Zoom In">
+              <span className="material-symbols-outlined text-[20px]">add</span>
+            </button>
+            <button className="w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center text-white transition-colors" title="Reset View">
+              <span className="material-symbols-outlined text-[20px]">my_location</span>
+            </button>
+            <button className="w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center text-white transition-colors" title="Zoom Out">
+              <span className="material-symbols-outlined text-[20px]">remove</span>
+            </button>
+          </div>
+        </div>
+
       </main>
-      <Footer />
     </div>
   );
 }
+
+export default App;
