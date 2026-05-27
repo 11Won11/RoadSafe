@@ -236,12 +236,14 @@ SPATIAL_FEAT_COLS = [
 def _tune(X_train, y_train, n_trials=30):
     def objective(trial):
         params = dict(
-            max_depth=trial.suggest_int("max_depth", 3, 7),
-            learning_rate=trial.suggest_float("lr", 0.01, 0.3, log=True),
-            n_estimators=trial.suggest_int("n_est", 100, 400),
-            subsample=trial.suggest_float("sub", 0.5, 1.0),
-            colsample_bytree=trial.suggest_float("col", 0.5, 1.0),
-            min_child_weight=trial.suggest_int("mcw", 1, 10),
+            max_depth=trial.suggest_int("max_depth", 3, 5), # 줄여서 과적합 방지
+            learning_rate=trial.suggest_float("lr", 0.01, 0.2, log=True),
+            n_estimators=trial.suggest_int("n_est", 100, 300),
+            subsample=trial.suggest_float("sub", 0.5, 0.9),
+            colsample_bytree=trial.suggest_float("col", 0.5, 0.9),
+            min_child_weight=trial.suggest_int("mcw", 2, 10),
+            reg_alpha=trial.suggest_float("alpha", 1e-3, 10.0, log=True), # L1 정규화 추가
+            reg_lambda=trial.suggest_float("lambda", 1e-3, 10.0, log=True), # L2 정규화 추가
         )
         model = xgb.XGBRegressor(
             **params, objective="count:poisson",
@@ -289,12 +291,14 @@ def train_grid_model(
     best_params.update({"lr": best_params.pop("lr", 0.1)})
 
     model = xgb.XGBRegressor(
-        max_depth=best_params.get("max_depth", 5),
+        max_depth=best_params.get("max_depth", 4),
         learning_rate=best_params.get("learning_rate", best_params.get("lr", 0.1)),
         n_estimators=best_params.get("n_est", 200),
         subsample=best_params.get("sub", 0.8),
         colsample_bytree=best_params.get("col", 0.8),
-        min_child_weight=best_params.get("mcw", 1),
+        min_child_weight=best_params.get("mcw", 2),
+        reg_alpha=best_params.get("alpha", 0.1),
+        reg_lambda=best_params.get("lambda", 1.0),
         objective="count:poisson", eval_metric="poisson-nloglik",
         tree_method="hist", random_state=42,
     )

@@ -2,9 +2,10 @@
 
 ![Python](https://img.shields.io/badge/Python-3.10-blue?style=for-the-badge&logo=python)
 ![XGBoost](https://img.shields.io/badge/XGBoost-Poisson_Regression-red?style=for-the-badge)
-![AUROC](https://img.shields.io/badge/AUROC_(2025)-0.8024-blueviolet?style=for-the-badge)
-![PAI](https://img.shields.io/badge/PAI@10%25_(Seoul)-2.95-brightgreen?style=for-the-badge)
-![Features](https://img.shields.io/badge/Features-26개_공간변수-orange?style=for-the-badge)
+![AUROC](https://img.shields.io/badge/AUROC_(2025)-0.7945-blueviolet?style=for-the-badge)
+![PAI](https://img.shields.io/badge/PAI@10%25_(Seoul)-27.2-brightgreen?style=for-the-badge)
+![Features](https://img.shields.io/badge/Features-27개_공간변수-orange?style=for-the-badge)
+![Web Dashboard](https://img.shields.io/badge/Dashboard-React_Vite-cyan?style=for-the-badge)
 ![Folium](https://img.shields.io/badge/Folium-Grid_Heatmap-green?style=for-the-badge)
 
 > **"사고가 나기 전에 위험한 공간을 먼저 바꿉니다."**
@@ -21,17 +22,17 @@
 | **모델 구조** | **격자 수준(Grid-level) XGBoost Poisson Regressor** (500m × 500m, 26개 Feature) |
 | **시간적 검증** | 2021~2024 데이터 학습 → **2025년 미래 실제 사고 예측 검증 (완전 홀드아웃)** |
 | **엄밀한 통제** | 산·강 등 PM 주행 불가(노출량 Zero) 구역 선제 필터링 → 4,575개 → 2,426개 격자 |
-| **미래 예측 AUROC** | **0.8024** (2025년 미래 검증 기준) |
-| **전체 기간 AUROC** | **0.9355** (2021~2025년 전체 기준) |
+| **미래 예측 AUROC** | **0.7945** (2025년 미래 검증 기준) |
+| **전체 기간 AUROC** | **0.8836** (2021~2025년 전체 기준) |
 | **공간 전이성** | **AUROC 0.9105** (서울 학습 → 부산 Zero-shot 예측) |
-| **실용성 지표 PAI** | 상위 10% 단속 시 서울 사고 **29.5% 예방** / 상위 50% 단속 시 **92.0% 예방** |
-| **설명가능성** | SHAP 분석 — `intersection_count_500m`(교차로 밀도)이 1위 위험 요인으로 정량 증명 |
+| **실용성 지표 PAI** | 상위 10% 단속 시 서울 사고 **27.2% 예방** / 상위 50% 단속 시 **91.2% 예방** |
+| **설명가능성** | SHAP 분석 — `poi_count_total`(전체 POI) 및 `towing_count`(견인 수)가 최상위 위험 요인 |
 
 ---
 
-## <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Light%20Bulb.png" alt="Light Bulb" width="30" height="30" style="vertical-align: middle;"/> 모델 Feature 구성 (26개)
+## <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Light%20Bulb.png" alt="Light Bulb" width="30" height="30" style="vertical-align: middle;"/> 모델 Feature 구성 (27개)
 
-모델은 다각도의 공간 빅데이터에서 추출한 26개의 공간 Feature를 사용합니다.
+모델은 다각도의 공간 빅데이터에서 추출한 27개의 공간 Feature를 사용합니다.
 
 ### 🛣️ 1. 도로망 인프라 Feature (OSMnx 기반, 16개)
 | Feature | 설명 |
@@ -74,6 +75,11 @@
 | `signal_has_audio` | 음향신호기 수 | 보행자 보호 구역 대리변수 |
 | `crosswalk_count` | 횡단보도 노드 수 | 서울시 대로변 횡단보도 위치정보 (19,518개) |
 
+### 🛴 5. 불법 주정차 밀집도 Feature (1개)
+| Feature | 설명 | 데이터 출처 |
+|---|---|---|
+| `towing_count` | 킥보드 견인 수 (**SHAP 2위**) | 서울시 전동킥보드 견인 현황 (27,571건) |
+
 ---
 
 ## <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Hammer%20and%20Wrench.png" alt="Hammer and Wrench" width="30" height="30" style="vertical-align: middle;"/> 파이프라인 아키텍처
@@ -90,7 +96,8 @@
          ├─ CCTV Feature    ← src/features/engineer_cctv.py
          ├─ 경사도 Feature   ← src/features/engineer_slope.py
          ├─ 신호등 Feature   ← src/features/engineer_signal.py
-         └─ 횡단보도 Feature ← src/features/engineer_crosswalk.py
+         ├─ 횡단보도 Feature ← src/features/engineer_crosswalk.py
+         └─ 견인 데이터 Feature ← src/features/engineer_towing.py
 
 [STEP 4] 산/강/외곽 비도로 구역 필터링 (4,575 → 2,426 격자)
 
@@ -100,8 +107,11 @@
 [STEP 6] 2025년 미래 사고 대비 PAI/AUROC 평가
          └─ outputs/evaluation_summary.txt, pai_metrics_*.csv
 
-[STEP 7] 격자 수준 위험도 히트맵 대시보드 생성
-         └─ outputs/seoul_pm_risk_grid.html
+[STEP 7] 웹 대시보드용 데이터 내보내기 (JSON/GeoJSON)
+         └─ scripts/export_for_web.py
+
+[STEP 8] 인터랙티브 React 웹 대시보드 서빙
+         └─ web/ (Vite + React + Leaflet)
 ```
 
 ---
@@ -160,12 +170,21 @@ python scripts/cross_city_eval.py
 
 | 파일명 | 설명 |
 |---|---|
-| `seoul_pm_risk_grid.html` | 격자 수준 공간 위험도 대시보드 (브라우저에서 열기) |
-| `evaluation_summary.txt` | AUROC / PAI / RRI 평가 요약 (논문 복붙용) |
+| `seoul_pm_risk_grid.html` | (구버전) Folium 기반 정적 히트맵 |
+| `evaluation_summary.txt` | AUROC / PAI / RRI 평가 요약 |
 | `pai_metrics_2025.csv` | 2025년 시간적 검증 PAI 상세 |
 | `pai_metrics_all.csv` | 전체 기간(2021-25) PAI 상세 |
 | `shap_grid_bar.png` | 공간 Feature 중요도 순위 차트 |
 | `shap_grid_dot.png` | Feature 영향력 방향성 시각화 |
+
+### 6. React 웹 대시보드 실행 (신규 기능)
+모델 학습이 완료된 후, 인터랙티브 웹 대시보드를 실행할 수 있습니다.
+```bash
+python scripts/export_for_web.py  # 예측 및 SHAP 데이터를 웹 폴더로 복사
+cd web
+npm install
+npm run dev
+```
 
 ---
 
@@ -173,15 +192,15 @@ python scripts/cross_city_eval.py
 
 ### 2025년 미래 예측 검증 (시간적 홀드아웃)
 
-| 지표 | 기본 (16) | + CCTV (19) | + 경사도 (21) | **+ 인프라 (26, 최종)** |
+| 지표 | 기본 (16) | + CCTV (19) | + 인프라 (26) | **+ 견인 (27, 최종)** |
 |---|:---:|:---:|:---:|:---:|
-| **AUROC** | 0.7468 | 0.7863 | 0.7908 | **0.8024** |
-| **MAE** | 1.222건 | 0.846건 | 0.997건 | **0.758건** |
-| **RMSE** | 1.607건 | 1.175건 | 1.352건 | **1.122건** |
-| **포착률 k=10%** | 21.8% | 28.0% | 29.1% | **29.5%** |
-| **포착률 k=30%** | — | 65.1% | 65.5% | **66.7%** |
-| **포착률 k=50%** | 85.1% | 87.4% | 90.4% | **92.0%** |
-| **RRI k=50%** | 1.10 | 1.13 | 1.17 | **1.19** |
+| **AUROC** | 0.7468 | 0.7863 | 0.8024 | **0.7971** |
+| **MAE** | 1.222건 | 0.846건 | 0.758건 | **0.810건** |
+| **RMSE** | 1.607건 | 1.175건 | 1.122건 | **1.170건** |
+| **포착률 k=10%** | 21.8% | 28.0% | 29.5% | **27.6%** |
+| **포착률 k=30%** | — | 65.1% | 66.7% | **65.1%** |
+| **포착률 k=50%** | 85.1% | 87.4% | 92.0% | **92.3%** |
+| **RRI k=50%** | 1.10 | 1.13 | 1.19 | **1.19** |
 
 ### 공간 전이성 검증 (서울 학습 → 부산 Zero-shot)
 
