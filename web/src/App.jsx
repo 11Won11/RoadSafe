@@ -7,33 +7,70 @@ import { RiskMap } from './components/RiskMap';
 
 function App() {
   const [geoData, setGeoData] = useState(null);
+  const [boundaryData, setBoundaryData] = useState(null);
   const [metrics, setMetrics] = useState(null);
+  const [shapData, setShapData] = useState(null);
+  const [isDarkMode, setIsDarkMode] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  useEffect(() => {
+    // Sync initial state with html class
+    if (document.documentElement.classList.contains('dark')) {
+      setIsDarkMode(true);
+    } else {
+      setIsDarkMode(false);
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    setIsDarkMode((prev) => {
+      const next = !prev;
+      if (next) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+      return next;
+    });
+  };
 
   useEffect(() => {
     // Load GeoJSON
-    fetch('/data/risk_grid_seoul.geojson')
+    fetch('/data/grid_predictions.geojson')
       .then(res => res.json())
       .then(data => setGeoData(data))
       .catch(err => console.error("Error loading geojson", err));
+
+    // Load Boundary GeoJSON
+    fetch('/data/seoul_boundary.geojson')
+      .then(res => res.json())
+      .then(data => setBoundaryData(data))
+      .catch(err => console.error("Error loading boundary", err));
 
     // Load Metrics
     fetch('/data/metrics_summary.json')
       .then(res => res.json())
       .then(data => setMetrics(data))
       .catch(err => console.error("Error loading metrics", err));
+
+    // Load SHAP Importance
+    fetch('/data/shap_importance.json')
+      .then(res => res.json())
+      .then(data => setShapData(data))
+      .catch(err => console.error("Error loading SHAP data", err));
   }, []);
 
   return (
-    <div className="bg-background text-on-surface min-h-screen overflow-hidden selection:bg-primary-container selection:text-on-primary-container">
-      <Navbar />
+    <div className="bg-slate-50 text-slate-900 dark:bg-background dark:text-on-surface min-h-screen overflow-hidden selection:bg-primary-container selection:text-on-primary-container transition-colors duration-300">
+      <Navbar isDarkMode={isDarkMode} toggleTheme={toggleTheme} searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
       <Sidebar />
       
       {/* Main Content Canvas (Map Background) */}
-      <main className="relative w-full h-screen pt-16 lg:pl-64 bg-[#0a0c10] overflow-hidden">
+      <main className="relative w-full h-screen pt-16 lg:pl-64 bg-slate-100 dark:bg-[#0a0c10] overflow-hidden transition-colors duration-300">
         
         {/* Full-screen Leaflet Map */}
         <div className="absolute inset-0 z-0">
-          <RiskMap geoData={geoData} />
+          <RiskMap geoData={geoData} boundaryData={boundaryData} isDarkMode={isDarkMode} searchQuery={searchQuery} />
         </div>
 
         {/* Map Grid Overlay for styling (pointer-events-none) */}
@@ -43,12 +80,15 @@ function App() {
         <div className="relative z-10 w-full h-full p-container-padding flex justify-between items-start gap-gutter pointer-events-none">
           {/* Left Panel */}
           <RiskOverviewPanel 
-            totalIncidents={metrics?.accident_count || 2132}
-            totalRisk={metrics?.grid_count || 2426}
+            metrics={metrics}
+            geoData={geoData}
           />
           
           {/* Right Panel */}
-          <AnalyticsPanel />
+          <AnalyticsPanel 
+            metrics={metrics}
+            shapData={shapData}
+          />
         </div>
 
         {/* Floating Map Controls (Bottom Center) */}

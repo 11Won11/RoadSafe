@@ -1,0 +1,132 @@
+[
+  {
+    "feature": "poi_count_total",
+    "label": "전체 POI 수",
+    "value": 0.2559
+  },
+  {
+    "feature": "crosswalk_count",
+    "label": "횡단보도 수",
+    "value": 0.2169
+  },
+  {
+    "feature": "poi_count_commercial",
+    "label": "상업시설 수",
+    "value": 0.1875
+  },
+  {
+    "feature": "cctv_count_traffic",
+    "label": "교통단속 CCTV",
+    "value": 0.1121
+  },
+  {
+    "feature": "elev_mean",
+    "label": "평균 표고 (m)",
+    "value": 0.1018
+  },
+  {
+    "feature": "cctv_count_total",
+    "label": "CCTV 전체 수",
+    "value": 0.0978
+  },
+  {
+    "feature": "elev_range",
+    "label": "경사도 (표고 범위)",
+    "value": 0.0931
+  },
+  {
+    "feature": "poi_count_bus_stop",
+    "label": "버스 정류장 수",
+    "value": 0.0846
+  },
+  {
+    "feature": "intersection_count_500m",
+    "label": "반경 500m 교차로 수",
+    "value": 0.0773
+  },
+  {
+    "feature": "intersection_count_200m",
+    "label": "반경 200m 교차로 수",
+    "value": 0.0685
+  },
+  {
+    "feature": "signal_has_audio",
+    "label": "음향 신호기 수",
+    "value": 0.0553
+  },
+  {
+    "feature": "signal_count_total",
+    "label": "신호등 전체 수",
+    "value": 0.0423
+  },
+  {
+    "feature": "intersection_count_100m",
+    "label": "반경 100m 교차로 수",
+    "value": 0.0315
+  },
+  {
+    "feature": "signal_count_vehicle",
+    "label": "차량 신호등 수",
+    "value": 0.0289
+  },
+  {
+    "feature": "signal_count_pedestrian",
+    "label": "보행자 신호등 수",
+    "value": 0.0272
+  },
+  {
+    "feature": "dist_to_nearest_intersection",
+    "label": "최근 교차로까지 거리",
+    "value": 0.0243
+  },
+  {
+    "feature": "poi_count_station",
+    "label": "지하철역 수",
+    "value": 0.0223
+  },
+  {
+    "feature": "cctv_count_child",
+    "label": "어린이보호 CCTV",
+    "value": 0.0198
+  },
+  {
+    "feature": "is_primary_road",
+    "label": "간선도로 여부",
+    "value": 0.015
+  },
+  {
+    "feature": "node_degree",
+    "label": "도로 노드 연결 차수",
+    "value": 0.0098
+  },
+  {
+    "feature": "avg_lanes",
+    "label": "평균 차선 수",
+    "value": 0.0071
+  },
+  {
+    "feature": "max_lanes",
+    "label": "최대 차선 수",
+    "value": 0.0052
+  },
+  {
+    "feature": "is_secondary_road",
+    "label": "집산도로 여부",
+    "value": 0.0037
+  },
+  {
+    "feature": "is_residential_road",
+    "label": "이면도로 여부",
+    "value": 0.0026
+  },
+  {
+    "feature": "is_intersection",
+    "label": "교차로 존재 여부",
+    "value": 0.0008
+  },
+  {
+    "feature": "poi_count_university",
+    "label": "대학교 수",
+    "value": 0.0005
+  }
+]

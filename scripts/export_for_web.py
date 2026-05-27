@@ -29,6 +29,8 @@ RISK_FEAT_COLS = [
     "poi_count_university", "poi_count_total",
     "cctv_count_total", "cctv_count_traffic", "cctv_count_child",
     "elev_mean", "elev_range",
+    "signal_count_total", "signal_count_pedestrian", "signal_count_vehicle",
+    "signal_has_audio", "crosswalk_count"
 ]
 
 
@@ -146,6 +148,11 @@ def export_shap_importance():
         "cctv_count_child":              "어린이보호 CCTV",
         "elev_mean":                     "평균 표고 (m)",
         "elev_range":                    "경사도 (표고 범위)",
+        "signal_count_total":            "신호등 전체 수",
+        "signal_count_pedestrian":       "보행자 신호등 수",
+        "signal_count_vehicle":          "차량 신호등 수",
+        "signal_has_audio":              "음향 신호기 수",
+        "crosswalk_count":               "횡단보도 수",
     }
 
     shap_data = sorted([
