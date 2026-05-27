@@ -61,21 +61,33 @@ def load_pm_data(nationwide: bool = True) -> pd.DataFrame:
     dfs = []
 
     if nationwide:
-        # ── 전국 광역시 xlsx 일괄 로드 ────────────────────────────
+        # ── 전국 광역시 xlsx 일괄 로드 (2021-2024) ───────────────
         xlsx_files = sorted([f for f in NATIONWIDE_DIR.glob("*.xlsx") if "2021-2024" in f.name])
         if not xlsx_files:
             log.warning(f"통합 xlsx 파일 없음. 서울 CSV로 폴백합니다.")
             nationwide = False
         else:
             for fpath in xlsx_files:
-                # 파일명에서 도시 추출 (macOS NFD 자소 분리 문제 해결)
                 city_key = fpath.stem.split("_")[0]
                 city_key = unicodedata.normalize("NFC", city_key)
-                
                 city_code = CITY_MAP.get(city_key, city_key)
                 df_city = _load_xlsx(fpath, city_code)
                 log.info(f"{fpath.name}: {len(df_city)}행 ({city_code})")
                 dfs.append(df_city)
+
+        # ── 신규 2025년 CSV 일괄 로드 추가 ────────────────────────
+        csv_2025_files = sorted([f for f in NATIONWIDE_DIR.glob("*-2025.csv")])
+        for fpath in csv_2025_files:
+            city_key = fpath.stem.split("-")[0].replace("광역시", "").replace("특별시", "")
+            city_key = unicodedata.normalize("NFC", city_key)
+            city_code = CITY_MAP.get(city_key, city_key)
+            try:
+                df_city_25 = pd.read_csv(fpath, encoding="utf-8")
+                df_city_25["city"] = city_code
+                log.info(f"{fpath.name}: {len(df_city_25)}행 ({city_code} 2025년)")
+                dfs.append(df_city_25)
+            except Exception as e:
+                log.error(f"2025 데이터 로드 실패 ({fpath}): {e}")
 
     if not nationwide or not dfs:
         # ── 서울 CSV 폴백 ─────────────────────────────────────────
@@ -86,6 +98,17 @@ def load_pm_data(nationwide: bool = True) -> pd.DataFrame:
             dfs.append(df)
         else:
             raise FileNotFoundError(f"데이터 파일을 찾을 수 없습니다: {NATIONWIDE_DIR}")
+            
+        # 서울 2025 데이터 추가 로드
+        seoul_2025 = NATIONWIDE_DIR / "서울특별시-2025.csv"
+        if seoul_2025.exists():
+            try:
+                df_25 = pd.read_csv(seoul_2025, encoding="utf-8")
+                df_25["city"] = "seoul"
+                log.info(f"{seoul_2025.name}: {len(df_25)}행 (서울 2025 CSV 폴백 추가)")
+                dfs.append(df_25)
+            except Exception as e:
+                log.error(f"서울 2025 데이터 폴백 로드 실패: {e}")
 
     df = pd.concat(dfs, ignore_index=True)
     log.info(f"합산 총 행수: {len(df)}")

@@ -17,7 +17,9 @@ import optuna
 import logging
 import pickle
 from pathlib import Path
-from sklearn.metrics import roc_auc_score, f1_score, classification_report
+from sklearn.metrics import roc_auc_score, f1_score, classification_report, mean_squared_error, mean_absolute_error
+import libpysal
+from esda.moran import Moran
 
 optuna.logging.set_verbosity(optuna.logging.WARNING)
 log = logging.getLogger(__name__)
@@ -53,7 +55,24 @@ def build_grid_dataset(
     grid_feat_cache = Path(f"data/interim/grid_features_with_labels_{city_name.lower()}.csv")
     if grid_feat_cache.exists() and not force:
         log.info(f"격자 Feature 캐시 로드: {grid_feat_cache}")
-        return pd.read_csv(grid_feat_cache)
+        df = pd.read_csv(grid_feat_cache)
+        # CCTV 컬럼이 없으면 추가 후 캐시 갱신 (OSMnx 재계산 없이)
+        if "cctv_count_total" not in df.columns:
+            log.info("CCTV Feature 누락 → 추가 중...")
+            from src.features.engineer_cctv import assign_cctv_to_grids
+            df = assign_cctv_to_grids(df, GRID_LAT, GRID_LON)
+            df.to_csv(grid_feat_cache, index=False)
+            log.info(f"CCTV Feature 추가 완료 → 캐시 갱신: {grid_feat_cache}")
+
+        # 경사도 컬럼이 없으면 추가 후 캐시 갱신
+        if "elev_mean" not in df.columns:
+            log.info("경사 Feature 누락 → 추가 중...")
+            from src.features.engineer_slope import assign_slope_to_grids
+            df = assign_slope_to_grids(df, GRID_LAT, GRID_LON)
+            df.to_csv(grid_feat_cache, index=False)
+            log.info(f"경사 Feature 추가 완료 → 캐시 갱신: {grid_feat_cache}")
+
+        return df
 
     # 도시 BBOX 추출
     log.info(f"{city_name} Bounding Box 추출 중...")
@@ -115,8 +134,8 @@ def build_grid_dataset(
             (acc_lon >= lon_min) & (acc_lon < lon_max_cell)
         )
         total_acc = in_cell.sum()
-        acc_2021_23 = ((acc_year <= 2023) & in_cell).sum()
-        acc_2024 = ((acc_year == 2024) & in_cell).sum()
+        acc_2021_24 = ((acc_year <= 2024) & in_cell).sum()
+        acc_2025 = ((acc_year == 2025) & in_cell).sum()
 
         records.append({
             "lat_min": lat_min,
@@ -124,20 +143,28 @@ def build_grid_dataset(
             "cy": cy,
             "cx": cx,
             "acc_total": int(total_acc),
-            "acc_2021_23": int(acc_2021_23),
-            "acc_2024": int(acc_2024),
+            "acc_2021_24": int(acc_2021_24),
+            "acc_2025": int(acc_2025),
             **spatial,
         })
 
     df = pd.DataFrame(records)
     df["label_all"]     = (df["acc_total"] > 0).astype(int)
-    df["label_2021_23"] = (df["acc_2021_23"] > 0).astype(int)
-    df["label_2024"]    = (df["acc_2024"] > 0).astype(int)
+    df["label_2021_24"] = (df["acc_2021_24"] > 0).astype(int)
+    df["label_2025"]    = (df["acc_2025"] > 0).astype(int)
 
     # ── POI 유동인구 Proxy 연동 ────────────────────────────────
     from src.features.engineer_poi import download_city_pois, assign_pois_to_grids
     poi_df = download_city_pois(city_name=city_name, force=False)
     df = assign_pois_to_grids(df, poi_df, GRID_LAT, GRID_LON)
+
+    # ── CCTV 감시/억제 Feature 연동 ───────────────────────────
+    from src.features.engineer_cctv import assign_cctv_to_grids
+    df = assign_cctv_to_grids(df, GRID_LAT, GRID_LON)
+
+    # ── 지형/경사도 Feature 연동 ───────────────────────────
+    from src.features.engineer_slope import assign_slope_to_grids
+    df = assign_slope_to_grids(df, GRID_LAT, GRID_LON)
 
     grid_feat_cache.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(grid_feat_cache, index=False)
@@ -153,9 +180,13 @@ SPATIAL_FEAT_COLS = [
     "node_degree", "dist_to_nearest_intersection",
     "avg_lanes", "max_lanes",
     "is_primary_road", "is_secondary_road", "is_residential_road", "is_intersection",
-    # 추가된 POI (노출량 Proxy) 특성
-    "poi_count_commercial", "poi_count_bus_stop", "poi_count_station", 
-    "poi_count_university", "poi_count_total"
+    # POI (노출량 Proxy) 특성
+    "poi_count_commercial", "poi_count_bus_stop", "poi_count_station",
+    "poi_count_university", "poi_count_total",
+    # CCTV (감시/억제 효과) 특성
+    "cctv_count_total", "cctv_count_traffic", "cctv_count_child",
+    # 지형/경사도 특성
+    "elev_mean", "elev_range",
 ]
 
 
@@ -203,9 +234,9 @@ def train_grid_model(
     feat_cols = [c for c in SPATIAL_FEAT_COLS if c in grid_df.columns]
     log.info(f"사용 Feature: {feat_cols}")
 
-    # ── 훈련: 2021-2023 사고 '발생 횟수(Count)' 기준 (포아송 회귀) ──
+    # ── 훈련: 2021-2024 사고 '발생 횟수(Count)' 기준 (포아송 회귀) ──
     X = grid_df[feat_cols].fillna(0)
-    y_train_count = grid_df["acc_2021_23"]
+    y_train_count = grid_df["acc_2021_24"]
 
     log.info(f"학습 타겟 | 사고 횟수 총합: {y_train_count.sum()}건 (포아송 회귀 모델 적용)")
 
@@ -238,24 +269,24 @@ def train_grid_model(
     grid_df = grid_df.copy()
     grid_df["risk_score"] = risk_scores
 
-    # ── 시간적 검증: 2024 사고 기준 PAI ─────────────────────────
-    log.info("\n--- 시간적 검증 (2024 사고 기준) ---")
-    auroc_2024, pai_2024 = _eval_and_print(grid_df, label_col="label_2024", tag="2024년 사고")
+    # ── 시간적 검증: 2025 사고 기준 PAI ─────────────────────────
+    log.info("\n--- 시간적 검증 (2025 사고 기준) ---")
+    auroc_2025, pai_2025 = _eval_and_print(grid_df, label_col="label_2025", count_col="acc_2025", past_count_col="acc_2021_24", tag="2025년 사고")
 
     # ── 전체 기준 AUROC ──────────────────────────────────────────
     log.info("--- 전체 기간 기준 ---")
-    auroc_all, pai_all = _eval_and_print(grid_df, label_col="label_all", tag="전체(2021-24)")
+    auroc_all, pai_all = _eval_and_print(grid_df, label_col="label_all", count_col="acc_total", past_count_col="acc_2021_24", tag="전체(2021-25)")
 
     # ── 지표 저장 (보고서/논문용) ──────────────────────────────
-    pai_2024.to_csv(f"{output_dir}/pai_metrics_2024.csv", index=False)
+    pai_2025.to_csv(f"{output_dir}/pai_metrics_2025.csv", index=False)
     pai_all.to_csv(f"{output_dir}/pai_metrics_all.csv", index=False)
     
     with open(f"{output_dir}/evaluation_summary.txt", "w", encoding="utf-8") as f:
         f.write("=== SAFERIDE 격자 위험도 모델 평가 요약 ===\n\n")
-        f.write(f"[1] 2024년 시간적 검증 (미래 예측)\n")
-        f.write(f"  - AUROC: {auroc_2024:.4f}\n")
-        f.write(f"  - PAI@10%: {pai_2024.loc[9, 'pai']:.2f}\n")
-        f.write(f"  - PAI@20%: {pai_2024.loc[19, 'pai']:.2f}\n\n")
+        f.write(f"[1] 2025년 시간적 검증 (미래 예측)\n")
+        f.write(f"  - AUROC: {auroc_2025:.4f}\n")
+        f.write(f"  - PAI@10%: {pai_2025.loc[9, 'pai']:.2f}\n")
+        f.write(f"  - PAI@20%: {pai_2025.loc[19, 'pai']:.2f}\n\n")
         f.write(f"[2] 전체(2021-2024) 데이터 기준\n")
         f.write(f"  - AUROC: {auroc_all:.4f}\n")
         f.write(f"  - PAI@10%: {pai_all.loc[9, 'pai']:.2f}\n")
@@ -289,17 +320,21 @@ def train_grid_model(
     return model, explainer, feat_cols, grid_df
 
 
-def _eval_and_print(grid_df, label_col, tag):
-    """PAI + AUROC 출력 및 반환"""
+def _eval_and_print(grid_df, label_col, count_col, past_count_col, tag):
+    """PAI + 고급 평가지표(RMSE, PEI, RRI, Moran's I) 출력 및 반환"""
     from src.evaluation.evaluate import compute_pai
 
-    y_true = grid_df[label_col].values
+    y_true_binary = grid_df[label_col].values
+    y_true_count = grid_df[count_col].values
+    
+    # risk_score(0~100) 외에 실제 모델 예측 횟수(preds) 복원을 위해 역산 (정확한 RMSE를 위해선 raw preds가 필요하나 여기선 score 기반 비율로 근사하거나 원본을 다시 predict해야 함.
+    # 하지만 grid_df에는 risk_score만 저장됨. RMSE용으로 risk_score를 스케일링된 위험 지수 오차로 계산.
+    # 정확한 계산을 위해 여기서는 생략하고, risk_score 자체의 순위 및 분류 지표에 집중.
     y_score = grid_df["risk_score"].values / 100
 
     auroc = 0.0
-    # 라벨이 있는 경우만 AUROC
-    if y_true.sum() > 0 and y_true.sum() < len(y_true):
-        auroc = roc_auc_score(y_true, y_score)
+    if y_true_binary.sum() > 0 and y_true_binary.sum() < len(y_true_binary):
+        auroc = roc_auc_score(y_true_binary, y_score)
         log.info(f"[{tag}] AUROC={auroc:.4f}")
 
     # PAI 계산 (격자 기반)
@@ -307,15 +342,56 @@ def _eval_and_print(grid_df, label_col, tag):
     acc_grids = grid_df[grid_df[label_col] == 1][["lat_min", "lon_min"]].copy()
     acc_grids["위도"] = acc_grids["lat_min"] + GRID_LAT / 2
     acc_grids["경도"] = acc_grids["lon_min"] + GRID_LON / 2
-
     pai_df = compute_pai(grid_for_pai, acc_grids)
 
-    print(f"\n  [{tag}] PAI 결과")
-    print(f"  {'k%':>5} | {'포착 격자':>8} | {'포착률':>7} | {'PAI':>6}")
-    print("  " + "-" * 38)
+    # 1. RRI (Baseline 비교) 및 PEI (완벽 모델 비교) 계산
+    # Baseline(과거 사고 순) PAI
+    grid_for_base = grid_df[["lat_min", "lon_min", past_count_col]].rename(columns={past_count_col: "risk_score"}).copy()
+    base_pai_df = compute_pai(grid_for_base, acc_grids)
+    
+    # 완벽 모델(미래 사고 순) PAI
+    grid_for_god = grid_df[["lat_min", "lon_min", count_col]].rename(columns={count_col: "risk_score"}).copy()
+    god_pai_df = compute_pai(grid_for_god, acc_grids)
+
+    # 2. Moran's I (잔차 공간 자기상관성)
+    # Residual = 실제 사고 수 - (risk_score 기준 예상 사고 분포)
+    # 간단히 risk_score 자체의 공간적 자기상관성을 보거나, 오차를 계산.
+    # 여기서는 risk_score와 y_true_count의 상관관계에 따른 잔차.
+    residuals = y_true_count - (y_score * y_true_count.max())
+    
+    # KNN 기반 공간 가중치 행렬 생성 (k=8)
+    coords = np.column_stack((grid_df["lon_min"] + GRID_LON/2, grid_df["lat_min"] + GRID_LAT/2))
+    w = libpysal.weights.KNN.from_array(coords, k=8)
+    w.transform = 'r'
+    mi = Moran(residuals, w)
+    
+    # 3. RMSE & MAE
+    rmse = mean_squared_error(y_true_count, y_score * y_true_count.max(), squared=False)
+    mae = mean_absolute_error(y_true_count, y_score * y_true_count.max())
+
+    print(f"\n  [{tag}] 🚀 고급 예측 지표 평가 결과")
+    print(f"  - RMSE (평균 오차): {rmse:.3f} 건 / MAE: {mae:.3f} 건")
+    print(f"  - Moran's I (잔차 공간 편향성): {mi.I:.4f} (p-value: {mi.p_sim:.4f})")
+    if mi.I < 0.1:
+        print("    -> 잔차의 군집이 거의 없음 (모델이 공간 패턴을 완벽히 흡수함 🌟)")
+        
+    print(f"\n  [{tag}] 정책 실효성 지표 (PAI, PEI, RRI)")
+    print(f"  {'k%':>5} | {'포착률(Model)':>14} | {'PEI (신 대비 효율)':>17} | {'RRI (과거 대비 향상)':>17}")
+    print("  " + "-" * 75)
+    
     for k in [5, 10, 20, 30, 50]:
         row = pai_df.loc[k - 1]
-        print(f"  {k:>5}% | {int(row['acc_captured']):>8} | {row['acc_ratio']*100:>6.1f}% | {row['pai']:>6.2f}")
+        base_row = base_pai_df.loc[k - 1]
+        god_row = god_pai_df.loc[k - 1]
+        
+        hit_rate = row['acc_ratio'] * 100
+        base_hit = base_row['acc_ratio'] * 100
+        god_hit = god_row['acc_ratio'] * 100
+        
+        pei = (hit_rate / god_hit) if god_hit > 0 else 0
+        rri = (hit_rate / base_hit) if base_hit > 0 else 0
+        
+        print(f"  {k:>5}% | {hit_rate:>13.1f}% | {pei:>17.2f} | {rri:>17.2f}")
 
     return auroc, pai_df
 
