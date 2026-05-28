@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 
 const Sidebar = () => {
-  const [activeTab, setActiveTab] = useState('Overview');
+  const [activeTab, setActiveTab] = useState('overview');
 
   const navItems = [
-    { id: 'Overview', icon: 'dashboard', label: 'Overview' },
-    { id: 'Real-time', icon: 'monitoring', label: 'Real-time' },
-    { id: 'Historical', icon: 'history', label: 'Historical' },
-    { id: 'Predictions', icon: 'online_prediction', label: 'Predictions' },
+    { id: 'overview',    icon: 'dashboard',         label: '대시보드' },
+    { id: 'map',         icon: 'map',               label: '위험도 지도' },
+    { id: 'analysis',    icon: 'online_prediction',  label: '모델 분석' },
+    { id: 'history',     icon: 'history',            label: '사고 이력' },
   ];
 
   return (
@@ -15,9 +15,9 @@ const Sidebar = () => {
       <div className="p-6 border-b border-black/5 dark:border-white/5">
         <div className="flex items-center gap-3 mb-2">
           <div className="w-2 h-2 rounded-full bg-primary-container pulse-marker"></div>
-          <h2 className="text-primary font-bold text-headline-sm font-headline-sm tracking-tight">Core Metrics</h2>
+          <h2 className="text-primary font-bold text-headline-sm font-headline-sm tracking-tight">PM 사고 분석</h2>
         </div>
-        <p className="text-body-sm font-body-sm text-slate-600 dark:text-on-surface-variant/70">V3.4 Active</p>
+        <p className="text-body-sm font-body-sm text-slate-600 dark:text-on-surface-variant/70">서울시 · 500m 격자 모델</p>
       </div>
       
       <div className="flex-1 py-4 flex flex-col gap-1 overflow-y-auto">
@@ -39,16 +39,16 @@ const Sidebar = () => {
 
       <div className="p-4 border-t border-black/5 dark:border-white/5">
         <button className="w-full bg-primary-container text-black hover:bg-primary-fixed font-semibold py-2 px-4 rounded text-body-md font-body-md transition-colors shadow-[0_0_15px_rgba(0,242,255,0.2)]">
-          Export Data
+          데이터 내보내기
         </button>
         <div className="mt-4 flex flex-col gap-1">
           <a className="text-slate-600 dark:text-on-surface-variant flex items-center gap-3 px-2 py-2 hover:text-slate-900 dark:hover:text-on-surface hover:bg-black/5 dark:bg-white/5 rounded transition-all text-body-sm font-body-sm" href="#">
             <span className="material-symbols-outlined text-[18px]">help</span>
-            Support
+            도움말
           </a>
-          <a className="text-slate-600 dark:text-on-surface-variant flex items-center gap-3 px-2 py-2 hover:text-slate-900 dark:hover:text-on-surface hover:bg-black/5 dark:bg-white/5 rounded transition-all text-body-sm font-body-sm" href="#">
-            <span className="material-symbols-outlined text-[18px]">account_circle</span>
-            Account
+          <a className="text-slate-600 dark:text-on-surface-variant flex items-center gap-3 px-2 py-2 hover:text-slate-900 dark:hover:text-on-surface hover:bg-black/5 dark:bg-white/5 rounded transition-all text-body-sm font-body-sm" href="https://github.com/11Won11/RoadSafe" target="_blank" rel="noopener noreferrer">
+            <span className="material-symbols-outlined text-[18px]">code</span>
+            GitHub
           </a>
         </div>
       </div>

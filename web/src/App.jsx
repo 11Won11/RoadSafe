@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
 import RiskOverviewPanel from './components/RiskOverviewPanel';
@@ -12,9 +12,9 @@ function App() {
   const [shapData, setShapData] = useState(null);
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedGu, setSelectedGu] = useState(null); // 선택된 구(District)
 
   useEffect(() => {
-    // Sync initial state with html class
     if (document.documentElement.classList.contains('dark')) {
       setIsDarkMode(true);
     } else {
@@ -34,35 +34,56 @@ function App() {
     });
   };
 
+  // ESC 키로 드릴다운 해제
   useEffect(() => {
-    // Load GeoJSON
-    fetch('/data/grid_predictions.geojson')
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setSelectedGu(null);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  useEffect(() => {
+    fetch('data/grid_predictions.geojson')
       .then(res => res.json())
       .then(data => setGeoData(data))
       .catch(err => console.error("Error loading geojson", err));
 
-    // Load Boundary GeoJSON
-    fetch('/data/seoul_boundary.geojson')
+    fetch('data/seoul_boundary.geojson')
       .then(res => res.json())
       .then(data => setBoundaryData(data))
       .catch(err => console.error("Error loading boundary", err));
 
-    // Load Metrics
-    fetch('/data/metrics_summary.json')
+    fetch('data/metrics_summary.json')
       .then(res => res.json())
       .then(data => setMetrics(data))
       .catch(err => console.error("Error loading metrics", err));
 
-    // Load SHAP Importance
-    fetch('/data/shap_importance.json')
+    fetch('data/shap_importance.json')
       .then(res => res.json())
       .then(data => setShapData(data))
       .catch(err => console.error("Error loading SHAP data", err));
   }, []);
 
+  const handleGuSelect = useCallback((guName) => {
+    setSelectedGu(prev => prev === guName ? null : guName);
+    setSearchQuery(""); // 검색창 초기화
+  }, []);
+
+  const handleGuClear = useCallback(() => {
+    setSelectedGu(null);
+  }, []);
+
   return (
     <div className="bg-slate-50 text-slate-900 dark:bg-background dark:text-on-surface min-h-screen overflow-hidden selection:bg-primary-container selection:text-on-primary-container transition-colors duration-300">
-      <Navbar isDarkMode={isDarkMode} toggleTheme={toggleTheme} searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
+      <Navbar
+        isDarkMode={isDarkMode}
+        toggleTheme={toggleTheme}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        selectedGu={selectedGu}
+        onGuClear={handleGuClear}
+      />
       <Sidebar />
       
       {/* Main Content Canvas (Map Background) */}
@@ -70,7 +91,14 @@ function App() {
         
         {/* Full-screen Leaflet Map */}
         <div className="absolute inset-0 z-0">
-          <RiskMap geoData={geoData} boundaryData={boundaryData} isDarkMode={isDarkMode} searchQuery={searchQuery} />
+          <RiskMap
+            geoData={geoData}
+            boundaryData={boundaryData}
+            isDarkMode={isDarkMode}
+            searchQuery={searchQuery}
+            selectedGu={selectedGu}
+            onGuSelect={handleGuSelect}
+          />
         </div>
 
         {/* Map Grid Overlay for styling (pointer-events-none) */}
@@ -82,29 +110,32 @@ function App() {
           <RiskOverviewPanel 
             metrics={metrics}
             geoData={geoData}
+            selectedGu={selectedGu}
+            onGuSelect={handleGuSelect}
+            onGuClear={handleGuClear}
           />
           
           {/* Right Panel */}
           <AnalyticsPanel 
             metrics={metrics}
             shapData={shapData}
+            geoData={geoData}
+            selectedGu={selectedGu}
           />
         </div>
 
-        {/* Floating Map Controls (Bottom Center) */}
-        <div className="absolute bottom-8 left-[calc(50%+128px)] -translate-x-1/2 z-20 pointer-events-auto">
-          <div className="glass-panel p-2 rounded-full flex gap-1 shadow-lg">
-            <button className="w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center text-white transition-colors" title="Zoom In">
-              <span className="material-symbols-outlined text-[20px]">add</span>
-            </button>
-            <button className="w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center text-white transition-colors" title="Reset View">
-              <span className="material-symbols-outlined text-[20px]">my_location</span>
-            </button>
-            <button className="w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center text-white transition-colors" title="Zoom Out">
-              <span className="material-symbols-outlined text-[20px]">remove</span>
+        {/* 드릴다운 선택 시 — 뒤로가기 Floating Button */}
+        {selectedGu && (
+          <div className="absolute bottom-8 left-[calc(50%+128px)] -translate-x-1/2 z-20 pointer-events-auto">
+            <button
+              onClick={handleGuClear}
+              className="glass-panel px-5 py-2 rounded-full flex items-center gap-2 shadow-lg hover:bg-white/10 transition-colors text-slate-900 dark:text-white text-body-sm font-body-sm"
+            >
+              <span className="material-symbols-outlined text-[18px]">arrow_back</span>
+              서울 전체 보기
             </button>
           </div>
-        </div>
+        )}
 
       </main>
     </div>
