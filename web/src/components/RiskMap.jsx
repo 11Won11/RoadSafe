@@ -1,145 +1,187 @@
-import { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState } from "react";
 import { MapContainer, TileLayer, GeoJSON } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
 
-const RISK_COLORS = {
-  very_high: "#ff2d2d",
-  high:      "#ff7b2d",
-  medium:    "#ffd166",
-  low:       "#4dffb4",
-  very_low:  "#1a2840",
+const RISK_COLORS_DARK = {
+  very_high: "#FF2A2A",
+  high:      "#C61A1A",
+  medium:    "#8E1212",
+  low:       "#540A0A",
+  very_low:  "#220505",
 };
 
-function getRiskColor(level) {
-  return RISK_COLORS[level] ?? RISK_COLORS.very_low;
+const RISK_COLORS_LIGHT = {
+  very_high: "#E60000",
+  high:      "#FF4D4D",
+  medium:    "#FF9999",
+  low:       "#FFCCCC",
+  very_low:  "#F5F5F5",
+};
+
+function getRiskColor(level, isDarkMode) {
+  const palette = isDarkMode ? RISK_COLORS_DARK : RISK_COLORS_LIGHT;
+  return palette[level] ?? palette.very_low;
 }
 
-function styleFeature(feature) {
+function styleFeature(feature, isDarkMode, searchQuery = "") {
   const level = feature.properties.risk_level;
-  const color = getRiskColor(level);
+  const districtName = feature.properties.SIG_KOR_NM || "";
+  const color = getRiskColor(level, isDarkMode);
+  
+  let isMuted = false;
+  if (searchQuery.trim().length > 0) {
+    if (!districtName.toLowerCase().includes(searchQuery.trim().toLowerCase())) {
+      isMuted = true;
+    }
+  }
+
   return {
     fillColor:   color,
-    fillOpacity: level === "very_low" ? 0.05 : 0.55,
+    fillOpacity: isMuted ? 0.02 : (level === "very_low" ? (isDarkMode ? 0.1 : 0.0) : 0.7),
     color:       color,
-    weight:      level === "very_high" || level === "high" ? 1.5 : 0.5,
-    opacity:     level === "very_low" ? 0.2 : 0.8,
+    weight:      isMuted ? 0.1 : (level === "very_high" || level === "high" ? 1.5 : (level === "very_low" ? 0.2 : 0.8)),
+    opacity:     isMuted ? 0.05 : (level === "very_low" ? (isDarkMode ? 0.3 : 0.1) : 0.9),
   };
 }
 
-export function RiskMap() {
-  const [geoData, setGeoData] = useState(null);
+export function RiskMap({ geoData, boundaryData, isDarkMode, searchQuery = "" }) {
   const [selectedGrid, setSelectedGrid] = useState(null);
   const [counts, setCounts] = useState({});
 
   useEffect(() => {
-    fetch("/data/grid_predictions.geojson")
-      .then(r => r.json())
-      .then(data => {
-        setGeoData(data);
-        // 위험 등급 집계
-        const c = {};
-        data.features.forEach(f => {
-          const lv = f.properties.risk_level;
-          c[lv] = (c[lv] || 0) + 1;
-        });
-        setCounts(c);
+    if (geoData) {
+      const c = {};
+      geoData.features.forEach(f => {
+        const lv = f.properties.risk_level;
+        c[lv] = (c[lv] || 0) + 1;
       });
-  }, []);
+      setCounts(c);
+    }
+  }, [geoData]);
 
   function onEachFeature(feature, layer) {
     const p = feature.properties;
     layer.on({
       mouseover(e) {
-        e.target.setStyle({ weight: 2, fillOpacity: 0.8 });
+        e.target.setStyle({ weight: 2, fillOpacity: 0.9, color: "#00F2FF" });
         setSelectedGrid(p);
       },
       mouseout(e) {
-        e.target.setStyle(styleFeature(feature));
+        e.target.setStyle(styleFeature(feature, isDarkMode, searchQuery));
         setSelectedGrid(null);
       },
     });
   }
 
   const LEGEND_ITEMS = [
-    { level: "very_high", label: "매우 위험 (80~100)" },
-    { level: "high",      label: "위험 (60~80)" },
-    { level: "medium",    label: "주의 (40~60)" },
-    { level: "low",       label: "낮음 (20~40)" },
-    { level: "very_low",  label: "안전 (0~20)" },
+    { level: "very_high", label: "Critical (80~100)" },
+    { level: "high",      label: "Elevated (60~80)" },
+    { level: "medium",    label: "Warning (40~60)" },
+    { level: "low",       label: "Monitor (20~40)" },
+    { level: "very_low",  label: "Optimal (0~20)" },
   ];
 
+  if (!geoData) {
+    return (
+      <div className="w-full h-full flex items-center justify-center text-slate-600 dark:text-on-surface-variant font-mono-data">
+        <span className="material-symbols-outlined animate-spin mr-2">sync</span>
+        Loading Spatial Data...
+      </div>
+    );
+  }
+
   return (
-    <section className="map-section" id="map">
-      <div className="container-wide">
-        <div className="section-header">
-          <span className="section-eyebrow">Risk Heatmap</span>
-          <h2 className="section-title">서울시 PM 사고 위험도 지도</h2>
-          <p className="section-desc">
-            격자 위로 마우스를 올리면 해당 구역의 위험도 상세 정보를 확인할 수 있습니다.
-          </p>
-        </div>
+    <div className="w-full h-full relative">
+      <MapContainer
+        center={[37.5665, 126.978]}
+        zoom={11.5}
+        style={{ height: "100%", width: "100%", background: "#0a0c10" }}
+        zoomControl={false}
+        preferCanvas={true}
+      >
+        <TileLayer
+          key={isDarkMode ? "dark" : "light"}
+          url={isDarkMode 
+            ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+            : "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"}
+          attribution='&copy; <a href="https://carto.com">CARTO</a>'
+          maxZoom={19}
+        />
+        
+        {/* Custom Vector Base Map (Seoul Boundary) */}
+        {boundaryData && (
+          <GeoJSON 
+            data={boundaryData} 
+            style={{
+              color: isDarkMode ? "#00F2FF" : "#005a63",     // Glowing neon cyan outline for dark, deep teal for light
+              weight: 2,
+              fillOpacity: isDarkMode ? 0.05 : 0.1,    // Faint fill
+              fillColor: isDarkMode ? "#00F2FF" : "#005a63",
+              interactive: false,   // Disable pointer events on the boundary
+            }}
+          />
+        )}
+        
+        {/* Grid Overlay */}
+        <GeoJSON
+          key={geoData.features.length + searchQuery}
+          data={geoData}
+          style={(feature) => styleFeature(feature, isDarkMode, searchQuery)}
+          onEachFeature={onEachFeature}
+        />
+      </MapContainer>
 
-        <div className="map-wrapper">
-          {geoData ? (
-            <MapContainer
-              center={[37.5665, 126.978]}
-              zoom={11}
-              style={{ height: "100%", width: "100%" }}
-              zoomControl={true}
-            >
-              <TileLayer
-                url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-                attribution='&copy; <a href="https://carto.com">CARTO</a>'
-                maxZoom={19}
-              />
-              <GeoJSON
-                key={geoData.features.length}
-                data={geoData}
-                style={styleFeature}
-                onEachFeature={onEachFeature}
-              />
-            </MapContainer>
-          ) : (
-            <div style={{ height:"100%",display:"flex",alignItems:"center",justifyContent:"center",color:"var(--text-muted)" }}>
-              지도 로딩 중...
+      {/* Floating Info Panel (Hover) */}
+      {selectedGrid && (
+        <div className="absolute top-24 left-1/2 -translate-x-1/2 z-[400] pointer-events-none transition-opacity duration-200">
+          <div className="glass-card px-4 py-3 rounded-lg shadow-[0_0_15px_rgba(0,0,0,0.5)] border-t border-primary-fixed-dim/40 min-w-[240px]">
+            <div className="flex items-center gap-2 mb-2 pb-2 border-b border-black/10 dark:border-white/10">
+              <span className="material-symbols-outlined text-[16px] text-primary-fixed-dim">location_on</span>
+              <span className="text-body-sm font-body-sm font-semibold text-slate-900 dark:text-white tracking-wider">GRID INSPECTION</span>
             </div>
-          )}
-
-          {/* 선택된 격자 정보 패널 */}
-          {selectedGrid && (
-            <div className="map-info-panel">
-              <div className="map-info-title">📍 격자 위험도 상세</div>
-              {[
-                ["위험도 점수", `${selectedGrid.risk_pct}/100`],
-                ["누적 사고", `${selectedGrid.acc_total}건`],
-                ["2025 사고", `${selectedGrid.acc_2025}건`],
-                ["평균 차선", `${selectedGrid.avg_lanes}개`],
-                ["CCTV 수", `${selectedGrid.cctv_total}대`],
-                ["경사도", `±${selectedGrid.elev_range}m`],
-                ["POI 수", `${selectedGrid.poi_total}개`],
-              ].map(([k, v]) => (
-                <div className="map-info-row" key={k}>
-                  <span className="map-info-key">{k}</span>
-                  <span className="map-info-val">{v}</span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* 범례 */}
-          <div className="map-legend">
-            <div className="legend-title">위험도 등급</div>
-            {LEGEND_ITEMS.map(item => (
-              <div className="legend-item" key={item.level}>
-                <div className="legend-dot" style={{ background: getRiskColor(item.level) }} />
-                <span style={{ color: "var(--text-secondary)", fontSize: "0.75rem" }}>
-                  {item.label}
-                  {counts[item.level] ? ` (${counts[item.level]})` : ""}
-                </span>
+            
+            <div className="flex flex-col gap-1">
+              <div className="flex justify-between">
+                <span className="text-label-md font-label-md text-slate-600 dark:text-on-surface-variant">Risk Score</span>
+                <span className="text-mono-data font-mono-data text-slate-900 dark:text-white">{selectedGrid.risk_pct}</span>
               </div>
-            ))}
+              <div className="flex justify-between">
+                <span className="text-label-md font-label-md text-slate-600 dark:text-on-surface-variant">Intersections</span>
+                <span className="text-mono-data font-mono-data text-slate-900 dark:text-white">{selectedGrid.intersections_500m}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-label-md font-label-md text-slate-600 dark:text-on-surface-variant">Signals / Crosswalks</span>
+                <span className="text-mono-data font-mono-data text-slate-900 dark:text-white">{selectedGrid.signal_total} / {selectedGrid.crosswalk_count || 0}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-label-md font-label-md text-slate-600 dark:text-on-surface-variant">Elevation Range</span>
+                <span className="text-mono-data font-mono-data text-[#ffcc00]">{selectedGrid.elev_range}m</span>
+              </div>
+            </div>
           </div>
         </div>
+      )}
+
+      {/* Legend */}
+      <div className="absolute bottom-8 right-8 z-[400] glass-card p-4 rounded-lg pointer-events-none">
+        <h4 className="text-label-md font-label-md text-slate-600 dark:text-on-surface-variant uppercase tracking-widest mb-3 border-b border-black/5 dark:border-white/5 pb-2">Risk Legend</h4>
+        <div className="flex flex-col gap-2">
+          {LEGEND_ITEMS.map(item => (
+            <div key={item.level} className="flex items-center gap-3">
+              <div 
+                className="w-3 h-3 rounded-full shadow-[0_0_8px_rgba(255,255,255,0.2)]" 
+                style={{ backgroundColor: getRiskColor(item.level, isDarkMode), border: `1px solid ${getRiskColor(item.level, isDarkMode)}80` }}
+              />
+              <span className="text-body-sm font-body-sm text-slate-900 dark:text-white">
+                {item.label}
+                {counts[item.level] && <span className="text-slate-600 dark:text-on-surface-variant ml-1 font-mono-data">({counts[item.level]})</span>}
+              </span>
+            </div>
+          ))}
+        </div>
       </div>
-    </section>
+    </div>
   );
 }
+
+export default RiskMap;

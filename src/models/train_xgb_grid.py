@@ -88,6 +88,14 @@ def build_grid_dataset(
             df.to_csv(grid_feat_cache, index=False)
             log.info(f"횡단보도 Feature 추가 완료 → 캐시 갱신: {grid_feat_cache}")
 
+        # 견인 컬럼이 없으면 추가 후 캐시 갱신
+        if "towing_count" not in df.columns:
+            log.info("견인 Feature 누락 → 추가 중...")
+            from src.features.engineer_towing import assign_towing_to_grids
+            df = assign_towing_to_grids(df, GRID_LAT, GRID_LON)
+            df.to_csv(grid_feat_cache, index=False)
+            log.info(f"견인 Feature 추가 완료 → 캐시 갱신: {grid_feat_cache}")
+
         return df
 
     # 도시 BBOX 추출
@@ -190,6 +198,10 @@ def build_grid_dataset(
     from src.features.engineer_crosswalk import assign_crosswalk_to_grids
     df = assign_crosswalk_to_grids(df, GRID_LAT, GRID_LON)
 
+    # ── 견인 Feature 연동 ────────────────────────────────
+    from src.features.engineer_towing import assign_towing_to_grids
+    df = assign_towing_to_grids(df, GRID_LAT, GRID_LON)
+
     grid_feat_cache.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(grid_feat_cache, index=False)
     log.info(f"격자 Feature 저장: {grid_feat_cache} ({len(df)}개 격자)")
@@ -206,7 +218,7 @@ SPATIAL_FEAT_COLS = [
     "is_primary_road", "is_secondary_road", "is_residential_road", "is_intersection",
     # POI (노출량 Proxy) 특성
     "poi_count_commercial", "poi_count_bus_stop", "poi_count_station",
-    "poi_count_university", "poi_count_total",
+    "poi_count_university",
     # CCTV (감시/억제 효과) 특성
     "cctv_count_total", "cctv_count_traffic", "cctv_count_child",
     # 지형/경사도 특성
@@ -216,18 +228,22 @@ SPATIAL_FEAT_COLS = [
     "signal_count_vehicle", "signal_has_audio",
     # 횡단보도 특성
     "crosswalk_count",
+    # 견인(불법 주정차 밀집도) 특성
+    "towing_count",
 ]
 
 
 def _tune(X_train, y_train, n_trials=30):
     def objective(trial):
         params = dict(
-            max_depth=trial.suggest_int("max_depth", 3, 7),
-            learning_rate=trial.suggest_float("lr", 0.01, 0.3, log=True),
-            n_estimators=trial.suggest_int("n_est", 100, 400),
-            subsample=trial.suggest_float("sub", 0.5, 1.0),
-            colsample_bytree=trial.suggest_float("col", 0.5, 1.0),
-            min_child_weight=trial.suggest_int("mcw", 1, 10),
+            max_depth=trial.suggest_int("max_depth", 3, 5), # 줄여서 과적합 방지
+            learning_rate=trial.suggest_float("lr", 0.01, 0.2, log=True),
+            n_estimators=trial.suggest_int("n_est", 100, 300),
+            subsample=trial.suggest_float("sub", 0.5, 0.9),
+            colsample_bytree=trial.suggest_float("col", 0.5, 0.9),
+            min_child_weight=trial.suggest_int("mcw", 2, 10),
+            reg_alpha=trial.suggest_float("alpha", 1e-3, 10.0, log=True), # L1 정규화 추가
+            reg_lambda=trial.suggest_float("lambda", 1e-3, 10.0, log=True), # L2 정규화 추가
         )
         model = xgb.XGBRegressor(
             **params, objective="count:poisson",
@@ -275,12 +291,14 @@ def train_grid_model(
     best_params.update({"lr": best_params.pop("lr", 0.1)})
 
     model = xgb.XGBRegressor(
-        max_depth=best_params.get("max_depth", 5),
+        max_depth=best_params.get("max_depth", 4),
         learning_rate=best_params.get("learning_rate", best_params.get("lr", 0.1)),
         n_estimators=best_params.get("n_est", 200),
         subsample=best_params.get("sub", 0.8),
         colsample_bytree=best_params.get("col", 0.8),
-        min_child_weight=best_params.get("mcw", 1),
+        min_child_weight=best_params.get("mcw", 2),
+        reg_alpha=best_params.get("alpha", 0.1),
+        reg_lambda=best_params.get("lambda", 1.0),
         objective="count:poisson", eval_metric="poisson-nloglik",
         tree_method="hist", random_state=42,
     )

@@ -1,33 +1,65 @@
-/* Navbar */
-export function Navbar() {
-  const links = [
-    { href: "#overview", label: "개요" },
-    { href: "#map",      label: "위험 지도" },
-    { href: "#analysis", label: "분석" },
-    { href: "#features", label: "피처" },
-  ];
+import React from 'react';
+
+const Navbar = ({ isDarkMode, toggleTheme, searchQuery, setSearchQuery }) => {
   return (
-    <nav className="navbar">
-      <div className="navbar-inner">
-        <div className="navbar-logo">
-          <span className="dot" />
-          <span>🛴 SAFERIDE</span>
+    <nav className="fixed top-0 left-0 w-full z-[100] flex justify-between items-center px-container-padding h-16 bg-white/60 dark:bg-surface/60 backdrop-blur-xl backdrop-filter border-b border-black/5 dark:border-white/5 shadow-sm">
+      <div className="flex items-center gap-6">
+        <div className="text-headline-md font-headline-md font-bold text-primary tracking-tighter">MobilityFlow AI</div>
+        
+        <div className="hidden md:flex gap-6 ml-8">
+          <a href="#" className="text-slate-600 dark:text-on-surface-variant hover:text-slate-900 dark:hover:text-on-surface transition-colors duration-200 text-label-md font-label-md uppercase tracking-wider py-5">
+            Network
+          </a>
+          <a href="#" className="text-slate-600 dark:text-on-surface-variant hover:text-slate-900 dark:hover:text-on-surface transition-colors duration-200 text-label-md font-label-md uppercase tracking-wider py-5">
+            Predictive
+          </a>
+          <a href="#" className="text-primary border-b-2 border-primary-fixed-dim pb-1 font-bold text-label-md font-label-md uppercase tracking-wider py-5 relative">
+            Regional
+            <div className="absolute bottom-0 left-0 w-full h-[1px] bg-primary-container shadow-[0_0_8px_rgba(0,242,255,0.6)]"></div>
+          </a>
+          <a href="#" className="text-slate-600 dark:text-on-surface-variant hover:text-slate-900 dark:hover:text-on-surface transition-colors duration-200 text-label-md font-label-md uppercase tracking-wider py-5">
+            Heatmap
+          </a>
         </div>
-        <ul className="navbar-links">
-          {links.map(l => (
-            <li key={l.href}><a href={l.href}>{l.label}</a></li>
-          ))}
-        </ul>
-        <a
-          className="btn-primary"
-          style={{ padding: "8px 18px", fontSize: "0.8rem" }}
-          href="https://github.com/11Won11/RoadSafe"
-          target="_blank"
-          rel="noreferrer"
-        >
-          GitHub ↗
-        </a>
+      </div>
+
+      <div className="flex items-center gap-4">
+        <div className="relative hidden sm:block">
+          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-600 dark:text-on-surface-variant text-sm">search</span>
+          <input 
+            type="text" 
+            placeholder="Search district (e.g. 강남구)" 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="bg-slate-200 dark:bg-black/20 border-b border-black/10 dark:border-white/10 focus:border-primary-fixed-dim focus:ring-0 text-body-sm font-body-sm text-slate-900 dark:text-on-surface px-9 py-2 rounded-t w-64 transition-colors placeholder:text-slate-600 dark:placeholder:text-on-surface-variant/50 focus:shadow-[0_1px_0_rgba(0,242,255,1)]"
+          />
+        </div>
+        
+        <button onClick={toggleTheme} className="text-slate-600 dark:text-on-surface-variant hover:text-slate-900 dark:hover:text-on-surface hover:bg-black/5 dark:hover:bg-black/5 dark:bg-white/5 p-2 rounded-full transition-all duration-300" title="Toggle Theme">
+          <span className="material-symbols-outlined text-[20px]">
+            {isDarkMode ? 'light_mode' : 'dark_mode'}
+          </span>
+        </button>
+        
+        <button className="text-slate-600 dark:text-on-surface-variant hover:text-slate-900 dark:hover:text-on-surface hover:bg-black/5 dark:hover:bg-black/5 dark:bg-white/5 p-2 rounded-full transition-all duration-300">
+          <span className="material-symbols-outlined text-[20px]">settings</span>
+        </button>
+        
+        <button className="text-slate-600 dark:text-on-surface-variant hover:text-slate-900 dark:hover:text-on-surface hover:bg-black/5 dark:bg-white/5 p-2 rounded-full transition-all duration-300 relative">
+          <span className="material-symbols-outlined text-[20px]">notifications</span>
+          <span className="absolute top-2 right-2 w-2 h-2 bg-primary-container rounded-full shadow-[0_0_4px_rgba(0,242,255,0.8)]"></span>
+        </button>
+        
+        <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-surface-container-high border border-black/10 dark:border-white/10 overflow-hidden ml-2 cursor-pointer hover:border-primary-fixed-dim transition-colors">
+          <img 
+            src="https://lh3.googleusercontent.com/aida-public/AB6AXuB3R2i6UaoyCEwiqTEh-BPLlCsmXklmt2vHZZ97iWCQpdu85aDXTQ6Mf8H4Aab3J3GZrnTI-Y26zZIkaeOB0181Fw8glYueB0rimS3elLnT4GQBG-oIPMrgad6r4pMJdCEvLaK24EjUfF9wnUgCg0HicRbxSE2Xj2KFn_wAfTppiO-YghmA-75wqZ53XLBskTrqTfKLhTP4yc3Z3o25pl5anT_UqoJruk62he-pmqbND62wxBmyF6OsAP9jvV5eQ6j9Z3ga_GMJXLN5" 
+            alt="Analyst Profile" 
+            className="w-full h-full object-cover"
+          />
+        </div>
       </div>
     </nav>
   );
-}
+};
+
+export default Navbar;

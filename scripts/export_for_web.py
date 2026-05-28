@@ -26,9 +26,11 @@ RISK_FEAT_COLS = [
     "avg_lanes", "max_lanes",
     "is_primary_road", "is_secondary_road", "is_residential_road", "is_intersection",
     "poi_count_commercial", "poi_count_bus_stop", "poi_count_station",
-    "poi_count_university", "poi_count_total",
+    "poi_count_university",
     "cctv_count_total", "cctv_count_traffic", "cctv_count_child",
     "elev_mean", "elev_range",
+    "signal_count_total", "signal_count_pedestrian", "signal_count_vehicle",
+    "signal_has_audio", "crosswalk_count", "towing_count"
 ]
 
 
@@ -94,6 +96,7 @@ def export_grid_geojson():
                 "avg_lanes":    round(float(row.get("avg_lanes", 0)), 1),
                 "poi_total":    int(row.get("poi_count_total", 0)),
                 "intersect_500":int(row.get("intersection_count_500m", 0)),
+                "towing_cnt":   int(row.get("towing_count", 0)),
             }
         }
         features.append(feature)
@@ -140,12 +143,17 @@ def export_shap_importance():
         "poi_count_bus_stop":            "버스 정류장 수",
         "poi_count_station":             "지하철역 수",
         "poi_count_university":          "대학교 수",
-        "poi_count_total":               "전체 POI 수",
         "cctv_count_total":              "CCTV 전체 수",
         "cctv_count_traffic":            "교통단속 CCTV",
         "cctv_count_child":              "어린이보호 CCTV",
         "elev_mean":                     "평균 표고 (m)",
         "elev_range":                    "경사도 (표고 범위)",
+        "signal_count_total":            "신호등 전체 수",
+        "signal_count_pedestrian":       "보행자 신호등 수",
+        "signal_count_vehicle":          "차량 신호등 수",
+        "signal_has_audio":              "음향 신호기 수",
+        "crosswalk_count":               "횡단보도 수",
+        "towing_count":                  "킥보드 견인 수",
     }
 
     shap_data = sorted([
