@@ -100,18 +100,46 @@ def _build_cross_city_dashboard(grid_scored: pd.DataFrame, target_city: str):
 def run_cross_city_eval(target_city: str = "Busan", city_code: str = "busan"):
     log.info(f"=== Cross-City Validation 시작: 학습(Seoul) -> 테스트({target_city}) ===")
     
-    # 1. 서울 모델 로드
-    model_path = Path("data/interim/xgb_grid_model.pkl")
-    if not model_path.exists():
-        log.error("학습된 서울 모델이 없습니다. 먼저 python scripts/run_grid.py를 실행하세요.")
+    # 1. 서울 공통 Feature 기반 재학습용 데이터 로드
+    log.info("[STEP 0] 서울 데이터 로드 및 공통 Feature 기반 전이 전용 모델 재학습")
+    seoul_path = Path("data/interim/grid_features_with_labels_seoul.csv")
+    if not seoul_path.exists():
+        log.error("서울 격자 데이터 캐시가 없습니다. 먼저 python scripts/run_grid.py를 실행하세요.")
         return
         
-    with open(model_path, "rb") as f:
-        saved_data = pickle.load(f)
-        model = saved_data["model"]
-        feature_names = saved_data["feature_names"]
-        
-    log.info(f"서울 모델 로드 완료 (사용 Feature: {len(feature_names)}개)")
+    seoul_df = pd.read_csv(seoul_path)
+    seoul_df = seoul_df[seoul_df["intersection_count_500m"] > 0].copy()
+    
+    # 공통 가용 Feature 정의 (OSMnx + POI 총 15개)
+    COMMON_FEAT_COLS = [
+        "intersection_count_100m", "intersection_count_200m", "intersection_count_500m",
+        "node_degree", "dist_to_nearest_intersection",
+        "avg_lanes", "max_lanes",
+        "is_primary_road", "is_secondary_road", "is_residential_road", "is_intersection",
+        "poi_count_commercial", "poi_count_bus_stop", "poi_count_station", "poi_count_university",
+    ]
+    
+    X_seoul = seoul_df[COMMON_FEAT_COLS].fillna(0)
+    y_seoul = seoul_df["acc_2021_24"] # 서울 2021-2024 사고 건수를 타겟으로 학습
+    
+    import xgboost as xgb
+    # 서울 메인 모델과 유사한 최적의 하이퍼파라미터 적용 (안정적인 디폴트)
+    transfer_model = xgb.XGBRegressor(
+        max_depth=4,
+        learning_rate=0.1,
+        n_estimators=200,
+        subsample=0.8,
+        colsample_bytree=0.8,
+        min_child_weight=2,
+        reg_alpha=0.1,
+        reg_lambda=1.0,
+        objective="count:poisson",
+        eval_metric="poisson-nloglik",
+        tree_method="hist",
+        random_state=42,
+    )
+    transfer_model.fit(X_seoul, y_seoul)
+    log.info(f"전이 전용 모델 학습 완료 (사용 공통 Feature: {len(COMMON_FEAT_COLS)}개)")
     
     # 2. 타겟 도시 데이터 로드
     log.info(f"\n[STEP 1] {target_city} PM 사고 데이터 로드")
@@ -134,23 +162,24 @@ def run_cross_city_eval(target_city: str = "Busan", city_code: str = "busan"):
     log.info(f"산/강/외곽 지역 필터링: {before_len} -> {len(grid_df)}개 격자")
     
     # 4. 모델 예측
-    log.info(f"\n[STEP 3] 서울 모델로 {target_city} 위험도 예측 및 평가")
+    log.info(f"\n[STEP 3] 서울 공통 Feature 모델로 {target_city} 위험도 예측 및 평가")
     
     # 입력 데이터 구성
-    X_target = grid_df[feature_names].fillna(0)
+    X_target = grid_df[COMMON_FEAT_COLS].fillna(0)
     
     # 예측 수행 (Poisson Regression: 예상 사고 건수)
-    preds = model.predict(X_target)
+    preds = transfer_model.predict(X_target)
     robust_max = np.percentile(preds, 99)
     if robust_max == 0:
         robust_max = preds.max()
         
     # 0~100점 만점의 Risk Score로 Robust 스케일링 (상위 1% 아웃라이어 클리핑)
     grid_df["risk_score"] = (preds / robust_max * 100).clip(0, 100) if robust_max > 0 else preds
+    grid_df["pred_count"] = preds
     
     # 평가 (PAI 및 AUROC)
     # 여기서는 시간적 구분이 아닌, 도시 전체 데이터(label_all)로 예측 능력을 봅니다.
-    auroc, pai_df = _eval_and_print(grid_df, label_col="label_all", count_col="acc_total", past_count_col="acc_2021_24", tag=f"Cross-City: {target_city}")
+    auroc, pai_df = _eval_and_print(grid_df, label_col="label_all", count_col="acc_total", past_count_col="acc_2021_24", tag=f"Cross-City: {target_city}", pred_col="pred_count")
     
     # 지표 저장
     output_dir = Path("outputs")

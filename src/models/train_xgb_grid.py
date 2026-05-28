@@ -41,7 +41,8 @@ GRID_LON = 0.0056
 def build_grid_dataset(
     acc_df: pd.DataFrame,
     force: bool = False,
-    city_name: str = "Seoul"
+    city_name: str = "Seoul",
+    towing_cutoff_year: int = 2024
 ) -> pd.DataFrame:
     """
     대상 도시(city_name) 전역 격자 × OSMnx 공간 Feature + 사고 건수 라벨 DataFrame 생성.
@@ -88,13 +89,10 @@ def build_grid_dataset(
             df.to_csv(grid_feat_cache, index=False)
             log.info(f"횡단보도 Feature 추가 완료 → 캐시 갱신: {grid_feat_cache}")
 
-        # 견인 컬럼이 없으면 추가 후 캐시 갱신
-        if "towing_count" not in df.columns:
-            log.info("견인 Feature 누락 → 추가 중...")
-            from src.features.engineer_towing import assign_towing_to_grids
-            df = assign_towing_to_grids(df, GRID_LAT, GRID_LON)
-            df.to_csv(grid_feat_cache, index=False)
-            log.info(f"견인 Feature 추가 완료 → 캐시 갱신: {grid_feat_cache}")
+        # 견인은 항상 cutoff_year 기준으로 동적 할당하여 리키지 방지!
+        log.info(f"견인 Feature 할당 중 (cutoff_year={towing_cutoff_year})...")
+        from src.features.engineer_towing import assign_towing_to_grids
+        df = assign_towing_to_grids(df, GRID_LAT, GRID_LON, cutoff_year=towing_cutoff_year)
 
         return df
 
@@ -200,7 +198,7 @@ def build_grid_dataset(
 
     # ── 견인 Feature 연동 ────────────────────────────────
     from src.features.engineer_towing import assign_towing_to_grids
-    df = assign_towing_to_grids(df, GRID_LAT, GRID_LON)
+    df = assign_towing_to_grids(df, GRID_LAT, GRID_LON, cutoff_year=towing_cutoff_year)
 
     grid_feat_cache.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(grid_feat_cache, index=False)
@@ -265,7 +263,7 @@ def train_grid_model(
     output_dir: str = "outputs",
 ):
     """
-    격자 수준 XGBoost 학습 + 시간적 검증(2021-23 → 2024)
+    격자 수준 XGBoost 학습 + 시간적 검증(2021-2024 훈련 → 2025 미래 사고 검증)
     Returns: (model, explainer, feature_names, grid_df_with_scores)
     """
     Path(output_dir).mkdir(parents=True, exist_ok=True)
@@ -315,14 +313,15 @@ def train_grid_model(
     
     grid_df = grid_df.copy()
     grid_df["risk_score"] = risk_scores
+    grid_df["pred_count"] = preds
 
     # ── 시간적 검증: 2025 사고 기준 PAI ─────────────────────────
     log.info("\n--- 시간적 검증 (2025 사고 기준) ---")
-    auroc_2025, pai_2025 = _eval_and_print(grid_df, label_col="label_2025", count_col="acc_2025", past_count_col="acc_2021_24", tag="2025년 사고")
+    auroc_2025, pai_2025 = _eval_and_print(grid_df, label_col="label_2025", count_col="acc_2025", past_count_col="acc_2021_24", tag="2025년 사고", pred_col="pred_count")
 
     # ── 전체 기준 AUROC ──────────────────────────────────────────
     log.info("--- 전체 기간 기준 ---")
-    auroc_all, pai_all = _eval_and_print(grid_df, label_col="label_all", count_col="acc_total", past_count_col="acc_2021_24", tag="전체(2021-25)")
+    auroc_all, pai_all = _eval_and_print(grid_df, label_col="label_all", count_col="acc_total", past_count_col="acc_2021_24", tag="전체(2021-25)", pred_col="pred_count")
 
     # ── 지표 저장 (보고서/논문용) ──────────────────────────────
     pai_2025.to_csv(f"{output_dir}/pai_metrics_2025.csv", index=False)
@@ -367,16 +366,14 @@ def train_grid_model(
     return model, explainer, feat_cols, grid_df
 
 
-def _eval_and_print(grid_df, label_col, count_col, past_count_col, tag):
+def _eval_and_print(grid_df, label_col, count_col, past_count_col, tag, pred_col="pred_count"):
     """PAI + 고급 평가지표(RMSE, PEI, RRI, Moran's I) 출력 및 반환"""
     from src.evaluation.evaluate import compute_pai
 
     y_true_binary = grid_df[label_col].values
     y_true_count = grid_df[count_col].values
+    y_pred_count = grid_df[pred_col].values
     
-    # risk_score(0~100) 외에 실제 모델 예측 횟수(preds) 복원을 위해 역산 (정확한 RMSE를 위해선 raw preds가 필요하나 여기선 score 기반 비율로 근사하거나 원본을 다시 predict해야 함.
-    # 하지만 grid_df에는 risk_score만 저장됨. RMSE용으로 risk_score를 스케일링된 위험 지수 오차로 계산.
-    # 정확한 계산을 위해 여기서는 생략하고, risk_score 자체의 순위 및 분류 지표에 집중.
     y_score = grid_df["risk_score"].values / 100
 
     auroc = 0.0
@@ -401,10 +398,7 @@ def _eval_and_print(grid_df, label_col, count_col, past_count_col, tag):
     god_pai_df = compute_pai(grid_for_god, acc_grids)
 
     # 2. Moran's I (잔차 공간 자기상관성)
-    # Residual = 실제 사고 수 - (risk_score 기준 예상 사고 분포)
-    # 간단히 risk_score 자체의 공간적 자기상관성을 보거나, 오차를 계산.
-    # 여기서는 risk_score와 y_true_count의 상관관계에 따른 잔차.
-    residuals = y_true_count - (y_score * y_true_count.max())
+    residuals = y_true_count - y_pred_count
     
     # KNN 기반 공간 가중치 행렬 생성 (k=8)
     coords = np.column_stack((grid_df["lon_min"] + GRID_LON/2, grid_df["lat_min"] + GRID_LAT/2))
@@ -413,8 +407,8 @@ def _eval_and_print(grid_df, label_col, count_col, past_count_col, tag):
     mi = Moran(residuals, w)
     
     # 3. RMSE & MAE
-    rmse = mean_squared_error(y_true_count, y_score * y_true_count.max(), squared=False)
-    mae = mean_absolute_error(y_true_count, y_score * y_true_count.max())
+    rmse = mean_squared_error(y_true_count, y_pred_count, squared=False)
+    mae = mean_absolute_error(y_true_count, y_pred_count)
 
     print(f"\n  [{tag}] 🚀 고급 예측 지표 평가 결과")
     print(f"  - RMSE (평균 오차): {rmse:.3f} 건 / MAE: {mae:.3f} 건")

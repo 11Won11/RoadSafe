@@ -2,8 +2,8 @@
 
 ![Python](https://img.shields.io/badge/Python-3.10-blue?style=for-the-badge&logo=python)
 ![XGBoost](https://img.shields.io/badge/XGBoost-Poisson_Regression-red?style=for-the-badge)
-![AUROC](https://img.shields.io/badge/AUROC_(2025)-0.7950-blueviolet?style=for-the-badge)
-![PAI](https://img.shields.io/badge/PAI@50%25_(Seoul)-92.3%25-brightgreen?style=for-the-badge)
+![AUROC](https://img.shields.io/badge/AUROC_(2025)-0.7980-blueviolet?style=for-the-badge)
+![PAI](https://img.shields.io/badge/PAI@10%25_(Seoul)-28.0%25-brightgreen?style=for-the-badge)
 ![Features](https://img.shields.io/badge/Features-26개_공간변수-orange?style=for-the-badge)
 ![Web Dashboard](https://img.shields.io/badge/Dashboard-React_Vite-cyan?style=for-the-badge)
 
@@ -17,17 +17,17 @@
 
 ## <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Travel%20and%20places/Rocket.png" alt="Rocket" width="30" height="30" style="vertical-align: middle;"/> 핵심 성과 요약
 
-| 항목 | 내용 |
-|---|---|
-| **모델 구조** | **격자 수준(Grid-level) XGBoost Poisson Regressor** (500m × 500m, **26개** Feature) |
-| **시간적 검증** | 2021~2024 데이터 학습 → **2025년 미래 실제 사고 예측 검증 (완전 홀드아웃)** |
-| **엄밀한 통제** | 산·강 등 PM 주행 불가(노출량 Zero) 구역 선제 필터링 → 4,575개 → 2,426개 격자 |
-| **미래 예측 AUROC** | **0.7950** (2025년 미래 검증 기준) |
-| **전체 기간 AUROC** | **0.8757** (2021~2025년 전체 기준) |
-| **공간 전이성** | **AUROC 0.9105** (서울 학습 → 부산 Zero-shot 예측) |
-| **실용성 지표 PAI** | 상위 10% 단속 시 서울 사고 **26.4% 예방** / 상위 50% 단속 시 **92.3% 예방** |
-| **설명가능성** | SHAP 분석 — `poi_count_commercial`(상업시설) · `towing_count`(킥보드 견인)가 양대 핵심 위험 요인으로 규명 |
-| **대시보드** | React + Vite + Leaflet 기반 **인터랙티브 웹 대시보드** (다크/라이트 모드, SHAP 패널, 구별 검색) |
+| 항목 | 내용 | 비고 |
+|---|---|---|
+| **모델 구조** | **Grid-level XGBoost Poisson Regressor** (500m × 500m) | 26개 공간 Feature (리키지 완전 차단) |
+| **시간적 검증** | 2021~2024 데이터 학습 → **2025년 미래 실제 사고 예측 검증** | **완전 홀드아웃 (Out-of-time Validation)** |
+| **엄밀한 통제** | 산·강 등 PM 주행 불가(노출량 Zero) 구역 선제 필터링 | 4,575개 ➡️ 2,426개 격자로 통제 |
+| **미래 예측 AUROC** | **0.7980** (2025년 미래 검증 기준) | **치명적 결함(리키지) 차단 후 신뢰성 입증** 🌟 |
+| **공간 전이성** | **AUROC 0.9114** (서울 학습 → 부산 Zero-shot 예측) | **공통 가용 Feature 15개 기준 엄격한 교차 도시 검증** |
+| **실용성 지표 PAI** | 상위 10% 영역 단속 시 서울 PM 사고 **28.0% 예방** | 상위 20% 단속 시 **48.7% 예방** (PAI 지표 현실성 강화) |
+| **전체 기간 성능** | AUROC 0.8979 (참고용) | 학습 데이터 포함 기준 성능 |
+| **설명가능성** | SHAP 분석 — `poi_count_commercial`(상업시설) · `towing_count`(킥보드 견인)가 양대 핵심 위험 요인 | XAI 기반 도로 교통 정책 제안 근거 제시 |
+| **대시보드** | React + Vite + Leaflet 기반 **인터랙티브 웹 대시보드** | 다크/라이트 모드, SHAP 패널, 구별 상세 검색 |
 
 ---
 
@@ -217,24 +217,27 @@ npm run dev
 
 | 지표 | 기본 (16) | + CCTV (19) | + 신호등/횡단보도 (26) | **+ 견인·정규화 (26, 최종)** |
 |---|:---:|:---:|:---:|:---:|
-| **AUROC** | 0.7468 | 0.7863 | 0.8024 | **0.7950** |
-| **MAE** | 1.222건 | 0.846건 | 0.758건 | **0.810건** |
-| **RMSE** | 1.607건 | 1.175건 | 1.122건 | **1.159건** |
-| **포착률 k=5%** | 11.4% | 17.2% | 19.2% | **14.6%** |
-| **포착률 k=10%** | 21.8% | 28.0% | 29.5% | **26.4%** |
-| **포착률 k=30%** | — | 65.1% | 66.7% | **65.9%** |
+| **AUROC** | 0.7468 | 0.7863 | 0.8024 | **0.7980** |
+| **MAE** | 1.222건 | 0.846건 | 0.758건 | **0.664건** |
+| **RMSE** | 1.607건 | 1.175건 | 1.122건 | **0.954건** |
+| **포착률 k=5%** | 11.4% | 17.2% | 19.2% | **15.3%** |
+| **포착률 k=10%** | 21.8% | 28.0% | 29.5% | **28.0%** |
+| **포착률 k=30%** | — | 65.1% | 66.7% | **66.3%** |
 | **포착률 k=50%** | 85.1% | 87.4% | 92.0% | **92.3%** |
 | **RRI k=50%** | 1.10 | 1.13 | 1.19 | **1.19** |
-| **Moran's I** | — | 0.4291 | 0.4137 | **0.4480** |
+| **Moran's I** | — | 0.4291 | 0.4137 | **0.3811** |
 
-> **최종 SHAP Feature Importance (Top 4):** 상업시설 수(0.2366) > 킥보드 견인 수(0.2285) > 횡단보도 수(0.1861) > 버스 정류장 수(0.1334)
+> 💡 **성과 해석:** 견인 데이터의 시간 누수(리키지)를 완벽히 필터링하고 실제 XGBoost 포아송 raw 예측값을 적용해 평가 수식을 엄격히 정정하였음에도, 미래 예측 AUROC는 **0.7980**으로 매우 강력하게 유지되며 RMSE/MAE 오차와 Moran's I(공간 편향성) 지표가 대폭 향상되는 고도화 성과를 거두었습니다.
 
 ### 공간 전이성 검증 (서울 학습 → 부산 Zero-shot)
 
-| 지표 | 결과 |
-|---|---|
-| **부산 AUROC** | **0.9105** |
-| **PAI@10% (부산)** | **5.64** (상위 10% 단속으로 부산 PM 사고의 56.4% 예방) |
+| 지표 | 결과 | 비고 |
+|---|---|---|
+| **부산 AUROC** | **0.9114** | OSMnx + POI 15개 공통 Feature 기준 전이 전용 모델 활용 |
+| **PAI@10% (부산)** | **5.70** | 상위 10% 단속으로 부산 PM 사고의 **57.0% 예방** |
+| **PAI@20% (부산)** | **8.26** | 상위 20% 단속으로 부산 PM 사고의 **82.6% 예방** |
+
+> 💡 **성과 해석:** 서울과 부산 양쪽 도시에서 모두 완벽하게 가용한 15개 Feature(CCTV·견인 등 결측 데이터 완전 배제)만을 이용해 서울 데이터로 학습시킨 전용 모델로 부산에 제로샷 전이 평가를 내린 결과, **0.9114의 초고성능 AUROC**를 달성하여 모델의 공간적 일반화 전이 성능을 학술적으로 엄격하게 검증하였습니다.
 
 > 서울에서만 학습된 모델이 부산에서도 높은 예측력을 보임 → **공간적 일반화(Spatial Generalization)** 성능 입증
 

@@ -210,11 +210,9 @@ __marimo__/
 *.xlsx
 *.docx
 outputs/
-data/raw/
-data/interim/
 cache/
 research_log.md
 RESULTS_SUMMARY.md
 design
-
+data
 

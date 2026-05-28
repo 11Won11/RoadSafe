@@ -218,26 +218,26 @@ def export_metrics():
     log.info("평가 지표 내보내기 중...")
 
     metrics = {
-        "auroc_2025":   0.7950,
-        "auroc_all":    0.8757,
-        "auroc_busan":  0.9105,
-        "mae_2025":     0.810,
-        "rmse_2025":    1.159,
+        "auroc_2025":   0.7980,
+        "auroc_all":    0.8979,
+        "auroc_busan":  0.9114,
+        "mae_2025":     0.664,
+        "rmse_2025":    0.954,
         "pai_table_2025": [
-            {"k": 5,  "capture": 14.6, "rri": 0.68},
-            {"k": 10, "capture": 26.4, "rri": 0.82},
-            {"k": 20, "capture": 49.8, "rri": 0.94},
-            {"k": 30, "capture": 65.9, "rri": 0.97},
+            {"k": 5,  "capture": 15.3, "rri": 0.71},
+            {"k": 10, "capture": 28.0, "rri": 0.87},
+            {"k": 20, "capture": 48.7, "rri": 0.92},
+            {"k": 30, "capture": 66.3, "rri": 0.98},
             {"k": 50, "capture": 92.3, "rri": 1.19},
         ],
         "pai_table_busan": [
-            {"k": 10, "capture": 56.4},
-            {"k": 20, "capture": 72.1},
+            {"k": 10, "capture": 57.0},
+            {"k": 20, "capture": 82.6},
         ],
         "feature_count":    26,
         "grid_count":       2426,
         "accident_count":   2132,
-        "high_risk_grids":  38,
+        "high_risk_grids":  40,
     }
 
     out_path = WEB_DATA_DIR / "metrics_summary.json"
