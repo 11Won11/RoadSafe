@@ -34,31 +34,22 @@ RISK_FEAT_COLS = [
 ]
 
 
-def _get_district_name(lat, lon, district_bounds=None):
-    """cx, cy 좌표로 서울 구(gu) 이름 추정 (경계 기반 간이 매핑)"""
-    # 서울 주요 구 중심 좌표 기반 최근접 매핑
-    GU_CENTERS = {
-        "강남구": (37.5172, 127.0473), "강동구": (37.5301, 127.1238), "강북구": (37.6396, 127.0257),
-        "강서구": (37.5509, 126.8496), "관악구": (37.4784, 126.9516), "광진구": (37.5384, 127.0822),
-        "구로구": (37.4954, 126.8874), "금천구": (37.4568, 126.8954), "노원구": (37.6542, 127.0568),
-        "도봉구": (37.6688, 127.0471), "동대문구": (37.5744, 127.0396), "동작구": (37.5124, 126.9393),
-        "마포구": (37.5663, 126.9017), "서대문구": (37.5791, 126.9368), "서초구": (37.4837, 127.0325),
-        "성동구": (37.5634, 127.0369), "성북구": (37.5894, 127.0167), "송파구": (37.5145, 127.1059),
-        "양천구": (37.5270, 126.8561), "영등포구": (37.5264, 126.8963), "용산구": (37.5324, 126.9908),
-        "은평구": (37.6027, 126.9291), "종로구": (37.5730, 126.9794), "중구": (37.5640, 126.9970),
-        "중랑구": (37.6063, 127.0928),
-    }
-    best, best_dist = "미분류", float("inf")
-    for name, (clat, clon) in GU_CENTERS.items():
-        d = (lat - clat) ** 2 + (lon - clon) ** 2
-        if d < best_dist:
-            best_dist = d
-            best = name
-    return best
+def _build_gu_lookup(boundary_path="web/public/data/seoul_boundary.geojson"):
+    """서울 구 경계 GeoJSON 기반으로 포인트-인-폴리곤 검색 준비"""
+    import geopandas as gpd
+    gdf = gpd.read_file(boundary_path)
+    if gdf.crs is None:
+        gdf = gdf.set_crs(epsg=4326)
+    elif gdf.crs.to_epsg() != 4326:
+        gdf = gdf.to_crs(epsg=4326)
+    return gdf[["name", "geometry"]].rename(columns={"name": "gu_name"})
 
 
 def export_grid_geojson():
-    """격자별 위험도 예측값 → GeoJSON"""
+    """격자별 위험도 예측값 → GeoJSON (구 이름은 경계 폴리곤 기반 정확 매핑)"""
+    import geopandas as gpd
+    from shapely.geometry import Point
+
     log.info("격자 데이터 로드 및 GeoJSON 변환 중...")
     df = pd.read_csv("data/interim/grid_features_with_labels_seoul.csv")
 
@@ -90,6 +81,27 @@ def export_grid_geojson():
 
     df_valid["risk_level"] = df_valid["risk_pct"].apply(classify_risk)
 
+    # 구 경계 GeoJSON 을 사용한 정확한 포인트-인-폴리곤 건스 매핑
+    log.info("구 경계 기반 공간 조인 중 (geopandas sjoin)...")
+    gu_gdf = _build_gu_lookup()
+    grid_geom = [Point(row["cx"], row["cy"]) for _, row in df_valid.iterrows()]
+    grid_gdf = gpd.GeoDataFrame(df_valid.reset_index(drop=True), geometry=grid_geom, crs="EPSG:4326")
+    joined = gpd.sjoin(grid_gdf, gu_gdf, how="left", predicate="within")
+    
+    # 중복 제거 (경계선에 걸친 격자가 여러 구에 조인되는 문제 방지)
+    joined = joined[~joined.index.duplicated(keep="first")]
+    
+    # 엄격한 포함 판정으로 매핑되지 않은 격자는 nearest 방식으로 안전망
+    unmatched = joined["gu_name"].isna()
+    if unmatched.sum() > 0:
+        log.info(f"⚠️  매핑 안된 격자 {unmatched.sum()}개 → nearest 구로 보완")
+        joined_nearest = gpd.sjoin_nearest(grid_gdf[unmatched], gu_gdf, how="left")
+        joined_nearest = joined_nearest[~joined_nearest.index.duplicated(keep="first")]
+        joined.loc[unmatched, "gu_name"] = joined_nearest["gu_name"].values
+        
+    df_valid["gu_name"] = joined["gu_name"].fillna("서울시").values
+    log.info(f"구 매핑 완료: {df_valid['gu_name'].nunique()}개 구")
+
     # GeoJSON Feature 목록 생성
     features = []
     for _, row in df_valid.iterrows():
@@ -106,7 +118,6 @@ def export_grid_geojson():
         ]]
         cy_val = float(row["cy"])
         cx_val = float(row["cx"])
-        district_name = _get_district_name(cy_val, cx_val)
         feature = {
             "type": "Feature",
             "geometry": {"type": "Polygon", "coordinates": coords},
@@ -117,7 +128,7 @@ def export_grid_geojson():
                 "acc_2025":       int(row.get("acc_2025", 0)),
                 "cx":             round(cx_val, 6),
                 "cy":             round(cy_val, 6),
-                "gu_name":        district_name,
+                "gu_name":        row["gu_name"],
                 "cctv_total":     int(row.get("cctv_count_total", 0)),
                 "elev_range":     round(float(row.get("elev_range", 0)), 1),
                 "avg_lanes":      round(float(row.get("avg_lanes", 0)), 1),
@@ -136,6 +147,8 @@ def export_grid_geojson():
         json.dump(geojson, f, ensure_ascii=False, separators=(",", ":"))
     log.info(f"GeoJSON 저장: {out_path} ({len(features)}개 격자)")
     return df_valid
+
+
 
 
 def export_shap_importance():
