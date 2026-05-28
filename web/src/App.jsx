@@ -44,22 +44,22 @@ function App() {
   }, []);
 
   useEffect(() => {
-    fetch('/data/grid_predictions.geojson')
+    fetch('data/grid_predictions.geojson')
       .then(res => res.json())
       .then(data => setGeoData(data))
       .catch(err => console.error("Error loading geojson", err));
 
-    fetch('/data/seoul_boundary.geojson')
+    fetch('data/seoul_boundary.geojson')
       .then(res => res.json())
       .then(data => setBoundaryData(data))
       .catch(err => console.error("Error loading boundary", err));
 
-    fetch('/data/metrics_summary.json')
+    fetch('data/metrics_summary.json')
       .then(res => res.json())
       .then(data => setMetrics(data))
       .catch(err => console.error("Error loading metrics", err));
 
-    fetch('/data/shap_importance.json')
+    fetch('data/shap_importance.json')
       .then(res => res.json())
       .then(data => setShapData(data))
       .catch(err => console.error("Error loading SHAP data", err));
