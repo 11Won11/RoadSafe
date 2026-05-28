@@ -34,6 +34,29 @@ RISK_FEAT_COLS = [
 ]
 
 
+def _get_district_name(lat, lon, district_bounds=None):
+    """cx, cy 좌표로 서울 구(gu) 이름 추정 (경계 기반 간이 매핑)"""
+    # 서울 주요 구 중심 좌표 기반 최근접 매핑
+    GU_CENTERS = {
+        "강남구": (37.5172, 127.0473), "강동구": (37.5301, 127.1238), "강북구": (37.6396, 127.0257),
+        "강서구": (37.5509, 126.8496), "관악구": (37.4784, 126.9516), "광진구": (37.5384, 127.0822),
+        "구로구": (37.4954, 126.8874), "금천구": (37.4568, 126.8954), "노원구": (37.6542, 127.0568),
+        "도봉구": (37.6688, 127.0471), "동대문구": (37.5744, 127.0396), "동작구": (37.5124, 126.9393),
+        "마포구": (37.5663, 126.9017), "서대문구": (37.5791, 126.9368), "서초구": (37.4837, 127.0325),
+        "성동구": (37.5634, 127.0369), "성북구": (37.5894, 127.0167), "송파구": (37.5145, 127.1059),
+        "양천구": (37.5270, 126.8561), "영등포구": (37.5264, 126.8963), "용산구": (37.5324, 126.9908),
+        "은평구": (37.6027, 126.9291), "종로구": (37.5730, 126.9794), "중구": (37.5640, 126.9970),
+        "중랑구": (37.6063, 127.0928),
+    }
+    best, best_dist = "미분류", float("inf")
+    for name, (clat, clon) in GU_CENTERS.items():
+        d = (lat - clat) ** 2 + (lon - clon) ** 2
+        if d < best_dist:
+            best_dist = d
+            best = name
+    return best
+
+
 def export_grid_geojson():
     """격자별 위험도 예측값 → GeoJSON"""
     log.info("격자 데이터 로드 및 GeoJSON 변환 중...")
@@ -81,22 +104,28 @@ def export_grid_geojson():
             [lon_min, lat_max],
             [lon_min, lat_min],
         ]]
+        cy_val = float(row["cy"])
+        cx_val = float(row["cx"])
+        district_name = _get_district_name(cy_val, cx_val)
         feature = {
             "type": "Feature",
             "geometry": {"type": "Polygon", "coordinates": coords},
             "properties": {
-                "risk_pct":     round(float(row["risk_pct"]), 1),
-                "risk_level":   row["risk_level"],
-                "acc_total":    int(row.get("acc_total", 0)),
-                "acc_2025":     int(row.get("acc_2025", 0)),
-                "cx":           round(float(row["cx"]), 6),
-                "cy":           round(float(row["cy"]), 6),
-                "cctv_total":   int(row.get("cctv_count_total", 0)),
-                "elev_range":   round(float(row.get("elev_range", 0)), 1),
-                "avg_lanes":    round(float(row.get("avg_lanes", 0)), 1),
-                "poi_total":    int(row.get("poi_count_total", 0)),
-                "intersect_500":int(row.get("intersection_count_500m", 0)),
-                "towing_cnt":   int(row.get("towing_count", 0)),
+                "risk_pct":       round(float(row["risk_pct"]), 1),
+                "risk_level":     row["risk_level"],
+                "acc_total":      int(row.get("acc_total", 0)),
+                "acc_2025":       int(row.get("acc_2025", 0)),
+                "cx":             round(cx_val, 6),
+                "cy":             round(cy_val, 6),
+                "gu_name":        district_name,
+                "cctv_total":     int(row.get("cctv_count_total", 0)),
+                "elev_range":     round(float(row.get("elev_range", 0)), 1),
+                "avg_lanes":      round(float(row.get("avg_lanes", 0)), 1),
+                "poi_commercial": int(row.get("poi_count_commercial", 0)),
+                "intersect_500":  int(row.get("intersection_count_500m", 0)),
+                "towing_cnt":     int(row.get("towing_count", 0)),
+                "crosswalk_cnt":  int(row.get("crosswalk_count", 0)),
+                "signal_total":   int(row.get("signal_count_total", 0)),
             }
         }
         features.append(feature)
@@ -176,26 +205,26 @@ def export_metrics():
     log.info("평가 지표 내보내기 중...")
 
     metrics = {
-        "auroc_2025":   0.7908,
-        "auroc_all":    0.8910,
+        "auroc_2025":   0.7950,
+        "auroc_all":    0.8757,
         "auroc_busan":  0.9105,
-        "mae_2025":     0.997,
-        "rmse_2025":    1.352,
+        "mae_2025":     0.810,
+        "rmse_2025":    1.159,
         "pai_table_2025": [
-            {"k": 5,  "capture": 15.7, "rri": 0.73},
-            {"k": 10, "capture": 29.1, "rri": 0.90},
-            {"k": 20, "capture": 48.3, "rri": 0.91},
-            {"k": 30, "capture": 65.5, "rri": 0.97},
-            {"k": 50, "capture": 90.4, "rri": 1.17},
+            {"k": 5,  "capture": 14.6, "rri": 0.68},
+            {"k": 10, "capture": 26.4, "rri": 0.82},
+            {"k": 20, "capture": 49.8, "rri": 0.94},
+            {"k": 30, "capture": 65.9, "rri": 0.97},
+            {"k": 50, "capture": 92.3, "rri": 1.19},
         ],
         "pai_table_busan": [
             {"k": 10, "capture": 56.4},
             {"k": 20, "capture": 72.1},
         ],
-        "feature_count":    21,
+        "feature_count":    26,
         "grid_count":       2426,
         "accident_count":   2132,
-        "high_risk_grids":  53,
+        "high_risk_grids":  38,
     }
 
     out_path = WEB_DATA_DIR / "metrics_summary.json"
