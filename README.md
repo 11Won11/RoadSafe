@@ -288,3 +288,13 @@ RoadSafe/
 * Lacherre et al. (2024). *Factors, Prediction, and Explainability of Vehicle Accident Risk Due to Driving Behavior through Machine Learning.* Computation, 12, 131.
 * Kim et al. (2024). *SST-GCN: The Sequential based Spatio-Temporal Graph Convolutional Networks for Minute-level and Road-level Traffic Accident Risk Prediction.* arXiv:2405.18602.
 * Abdullah et al. (2026). *Identifying accident and safety risks in urban micromobility.* Sustainable Futures, 11.
+* Kim et al. (2021). *Identifying Factors Affecting Crash Severity of Personal Mobility by Crash Types Using Hierarchical Models.* Traffic Safety Research, 40, 89–107.
+* Jeong et al. (2024). *Policy Directions for Enhancing Traffic Safety of Personal Mobility Devices.* Traffic Safety Research, 43(1), 29–48.
+* Han et al. (2022). *Estimating Crash Probability of Personal Mobility Devices Using a Logistic Multilevel Model.* Traffic Safety Research, 41(1), 173–191.
+* Kim et al. (2025). *A Study on the Use of Personal Mobility Devices by Adolescents and Accident Prevention Strategies.* Traffic Safety Research, 44(2), 39–60.
+* Baek et al. (2023). *Policy Improvement Strategies Using Personal Mobility Big Data.* KRIHS Policy Brief, 913.
+* Seok. (2021). *Policy Responses to the Growth of Personal Mobility Use in Incheon.* Incheon Institute Policy Research Report.
+* Yu et al. (2025). *Travel Behavior and Policy Implications of Personal Mobility Devices in Busan Metropolitan City.* Proceedings of the Korean Society of Transportation Conference, 205–206.
+* Hong et al. (2022). *Analysis of Shared E-Scooter Usage Behavior and Satisfaction Factors Using Importance–Performance Analysis.* Journal of Korea Planning Association, 57(2), 92–107.
+* Seoul Metropolitan Government. (2026). *Operation of Korea’s First “Kickboard-Free Street”.* Seoul Metropolitan Government Press Release.
+* Daejeon Metropolitan City. (2026). *Creation of Personal Mobility-Free Pilot Streets in Daejeon.* Daejeon Metropolitan City Press Release.
