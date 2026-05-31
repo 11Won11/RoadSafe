@@ -232,15 +232,15 @@ def export_metrics():
     log.info("평가 지표 내보내기 중...")
 
     metrics = {
-        "auroc_2025":   0.8096,
-        "auroc_all":    0.9857,
+        "auroc_2025":   0.8028,
+        "auroc_all":    0.9859,
         "auroc_busan":  0.9114,
-        "mae_2025":     0.676,
-        "rmse_2025":    1.547,
+        "mae_2025":     0.578,
+        "rmse_2025":    1.051,
         "pai_table_2025": [
-            {"k": 5,  "capture": 21.5, "rri": 1.00},
-            {"k": 10, "capture": 29.9, "rri": 0.93},
-            {"k": 20, "capture": 51.7, "rri": 0.98},
+            {"k": 5,  "capture": 14.6, "rri": 0.68},
+            {"k": 10, "capture": 28.3, "rri": 0.88},
+            {"k": 20, "capture": 52.1, "rri": 0.99},
             {"k": 30, "capture": 68.6, "rri": 1.01},
             {"k": 50, "capture": 90.0, "rri": 1.16},
         ],
@@ -251,7 +251,7 @@ def export_metrics():
         "feature_count":    27,
         "grid_count":       2426,
         "accident_count":   2132,
-        "high_risk_grids":  43,
+        "high_risk_grids":  69,
     }
 
     out_path = WEB_DATA_DIR / "metrics_summary.json"

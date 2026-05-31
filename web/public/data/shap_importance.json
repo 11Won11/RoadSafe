@@ -2,127 +2,127 @@
   {
     "feature": "acc_2021_24",
     "label": "과거 4개년 누적 사고 건수",
-    "value": 6.7845
+    "value": 4.2783
   },
   {
     "feature": "crosswalk_count",
     "label": "횡단보도 수",
-    "value": 0.1423
+    "value": 0.2177
   },
   {
     "feature": "intersection_count_500m",
     "label": "반경 500m 교차로 수",
-    "value": 0.0678
-  },
-  {
-    "feature": "signal_count_total",
-    "label": "신호등 전체 수",
-    "value": 0.053
+    "value": 0.1839
   },
   {
     "feature": "poi_count_commercial",
     "label": "상업시설 수",
-    "value": 0.0495
-  },
-  {
-    "feature": "intersection_count_200m",
-    "label": "반경 200m 교차로 수",
-    "value": 0.0325
-  },
-  {
-    "feature": "elev_mean",
-    "label": "평균 표고 (m)",
-    "value": 0.0278
+    "value": 0.1602
   },
   {
     "feature": "poi_count_bus_stop",
     "label": "버스 정류장 수",
-    "value": 0.0267
+    "value": 0.1561
   },
   {
-    "feature": "cctv_count_total",
-    "label": "CCTV 전체 수",
-    "value": 0.0231
-  },
-  {
-    "feature": "towing_count",
-    "label": "킥보드 견인 수",
-    "value": 0.0181
+    "feature": "intersection_count_200m",
+    "label": "반경 200m 교차로 수",
+    "value": 0.0711
   },
   {
     "feature": "elev_range",
     "label": "경사도 (표고 범위)",
-    "value": 0.0115
-  },
-  {
-    "feature": "avg_lanes",
-    "label": "평균 차선 수",
-    "value": 0.0046
-  },
-  {
-    "feature": "dist_to_nearest_intersection",
-    "label": "최근 교차로까지 거리",
-    "value": 0.004
+    "value": 0.0635
   },
   {
     "feature": "cctv_count_traffic",
     "label": "교통단속 CCTV",
-    "value": 0.0039
+    "value": 0.0621
   },
   {
-    "feature": "intersection_count_100m",
-    "label": "반경 100m 교차로 수",
-    "value": 0.0025
+    "feature": "towing_count",
+    "label": "킥보드 견인 수",
+    "value": 0.0613
   },
   {
-    "feature": "signal_count_pedestrian",
-    "label": "보행자 신호등 수",
-    "value": 0.0024
+    "feature": "elev_mean",
+    "label": "평균 표고 (m)",
+    "value": 0.0612
   },
   {
-    "feature": "signal_count_vehicle",
-    "label": "차량 신호등 수",
-    "value": 0.0024
+    "feature": "signal_count_total",
+    "label": "신호등 전체 수",
+    "value": 0.0539
   },
   {
-    "feature": "cctv_count_child",
-    "label": "어린이보호 CCTV",
-    "value": 0.002
+    "feature": "cctv_count_total",
+    "label": "CCTV 전체 수",
+    "value": 0.0485
+  },
+  {
+    "feature": "dist_to_nearest_intersection",
+    "label": "최근 교차로까지 거리",
+    "value": 0.0134
   },
   {
     "feature": "signal_has_audio",
     "label": "음향 신호기 수",
-    "value": 0.0019
+    "value": 0.0119
   },
   {
-    "feature": "node_degree",
-    "label": "도로 노드 연결 차수",
-    "value": 0.0015
-  },
-  {
-    "feature": "is_residential_road",
-    "label": "이면도로 여부",
-    "value": 0.0006
+    "feature": "signal_count_vehicle",
+    "label": "차량 신호등 수",
+    "value": 0.0071
   },
   {
     "feature": "poi_count_station",
     "label": "지하철역 수",
+    "value": 0.0069
+  },
+  {
+    "feature": "signal_count_pedestrian",
+    "label": "보행자 신호등 수",
+    "value": 0.0055
+  },
+  {
+    "feature": "cctv_count_child",
+    "label": "어린이보호 CCTV",
+    "value": 0.0053
+  },
+  {
+    "feature": "intersection_count_100m",
+    "label": "반경 100m 교차로 수",
+    "value": 0.0039
+  },
+  {
+    "feature": "avg_lanes",
+    "label": "평균 차선 수",
+    "value": 0.0026
+  },
+  {
+    "feature": "max_lanes",
+    "label": "최대 차선 수",
+    "value": 0.0016
+  },
+  {
+    "feature": "is_residential_road",
+    "label": "이면도로 여부",
+    "value": 0.0014
+  },
+  {
+    "feature": "node_degree",
+    "label": "도로 노드 연결 차수",
     "value": 0.0004
   },
   {
     "feature": "is_primary_road",
     "label": "간선도로 여부",
-    "value": 0.0003
-  },
-  {
-    "feature": "max_lanes",
-    "label": "최대 차선 수",
-    "value": 0.0001
+    "value": 0.0
   },
   {
     "feature": "is_secondary_road",
     "label": "집산도로 여부",
-    "value": 0.0001
+    "value": 0.0
   },
   {
     "feature": "is_intersection",
