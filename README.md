@@ -1,10 +1,10 @@
 # <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Travel%20and%20places/Kick%20Scooter.png" alt="Kick Scooter" width="45" height="45" style="vertical-align: middle;"/> SAFERIDE — PM 사고 공간 위험도 예측 플랫폼
 
 ![Python](https://img.shields.io/badge/Python-3.10-blue?style=for-the-badge&logo=python)
-![XGBoost](https://img.shields.io/badge/XGBoost-Poisson_Regression-red?style=for-the-badge)
-![AUROC](https://img.shields.io/badge/AUROC_(2025)-0.7980-blueviolet?style=for-the-badge)
-![PAI](https://img.shields.io/badge/PAI@10%25_(Seoul)-28.0%25-brightgreen?style=for-the-badge)
-![Features](https://img.shields.io/badge/Features-26개_공간변수-orange?style=for-the-badge)
+![XGBoost](https://img.shields.io/badge/XGBoost-Tweedie_Regression-red?style=for-the-badge)
+![AUROC](https://img.shields.io/badge/AUROC_(2025)-0.8028-blueviolet?style=for-the-badge)
+![PAI](https://img.shields.io/badge/PAI@10%25_(Seoul)-28.3%25-brightgreen?style=for-the-badge)
+![Features](https://img.shields.io/badge/Features-27개_공간변수-orange?style=for-the-badge)
 ![Web Dashboard](https://img.shields.io/badge/Dashboard-React_Vite-cyan?style=for-the-badge)
 
 > **"사고가 나기 전에 위험한 공간을 먼저 바꿉니다."**
@@ -19,14 +19,14 @@
 
 | 항목 | 내용 | 비고 |
 |---|---|---|
-| **모델 구조** | **Grid-level XGBoost Poisson Regressor** (500m × 500m) | 26개 공간 Feature (리키지 완전 차단) |
+| **모델 구조** | **Grid-level XGBoost Tweedie Regressor** (500m × 500m) | 27개 공간 Feature (이진 피처 변환 적용) |
 | **시간적 검증** | 2021~2024 데이터 학습 → **2025년 미래 실제 사고 예측 검증** | **완전 홀드아웃 (Out-of-time Validation)** |
 | **엄밀한 통제** | 산·강 등 PM 주행 불가(노출량 Zero) 구역 선제 필터링 | 4,575개 ➡️ 2,426개 격자로 통제 |
-| **미래 예측 AUROC** | **0.7980** (2025년 미래 검증 기준) | **치명적 결함(리키지) 차단 후 신뢰성 입증** 🌟 |
+| **미래 예측 AUROC** | **0.8028** (2025년 미래 검증 기준) | **공간 지속성(persistence) 추가 후 성능 향상** 🌟 |
 | **공간 전이성** | **AUROC 0.9114** (서울 학습 → 부산 Zero-shot 예측) | **공통 가용 Feature 15개 기준 엄격한 교차 도시 검증** |
-| **실용성 지표 PAI** | 상위 10% 영역 단속 시 서울 PM 사고 **28.0% 예방** | 상위 20% 단속 시 **48.7% 예방** (PAI 지표 현실성 강화) |
-| **전체 기간 성능** | AUROC 0.8979 (참고용) | 학습 데이터 포함 기준 성능 |
-| **설명가능성** | SHAP 분석 — `poi_count_commercial`(상업시설) · `towing_count`(킥보드 견인)가 양대 핵심 위험 요인 | XAI 기반 도로 교통 정책 제안 근거 제시 |
+| **실용성 지표 PAI** | 상위 10% 영역 단속 시 서울 PM 사고 **28.3% 예방** | 상위 30% 단속 시 **68.6% 예방**, 상위 50% 단속 시 **90.0% 예방** |
+| **공간 일반화 안정성** | **Moran's I 0.2708** (기존 0.3811 대비 대폭 개선) | **과거 사고 이진화(Binarization)로 지리적 과적합 극적 극복** |
+| **설명가능성 (XAI)** | SHAP 분석 — 과거 사고 이진화로 횡단보도, 교차로, POI, 견인 등 **인프라 기여도 3~5.8배 복원** | XAI 기반 균형감 있는 도로 교통 정책 제안 근거 제시 |
 | **대시보드** | React + Vite + Leaflet 기반 **인터랙티브 웹 대시보드** | 다크/라이트 모드, SHAP 패널, 구별 상세 검색 |
 
 ---
@@ -215,19 +215,20 @@ npm run dev
 
 ### 2025년 미래 예측 검증 (시간적 홀드아웃)
 
-| 지표 | 기본 (16) | + CCTV (19) | + 신호등/횡단보도 (26) | **+ 견인·정규화 (27, 최종)** |
+| 지표 | 기본 (16) | + CCTV (19) | + 신호등/횡단보도 (26) | **Tweedie + 이진화 (27, 최종)** |
 |---|:---:|:---:|:---:|:---:|
-| **AUROC** | 0.7468 | 0.7863 | 0.8024 | **0.7980** |
-| **MAE** | 1.222건 | 0.846건 | 0.758건 | **0.664건** |
-| **RMSE** | 1.607건 | 1.175건 | 1.122건 | **0.954건** |
-| **포착률 k=5%** | 11.4% | 17.2% | 19.2% | **15.3%** |
-| **포착률 k=10%** | 21.8% | 28.0% | 29.5% | **28.0%** |
-| **포착률 k=30%** | — | 65.1% | 66.7% | **66.3%** |
-| **포착률 k=50%** | 85.1% | 87.4% | 92.0% | **92.3%** |
-| **RRI k=50%** | 1.10 | 1.13 | 1.19 | **1.19** |
-| **Moran's I** | — | 0.4291 | 0.4137 | **0.3811** |
+| **AUROC** | 0.7468 | 0.7863 | 0.8024 | **0.8028** |
+| **PR-AUC** | — | — | — | **0.2829** |
+| **MAE** | 1.222건 | 0.846건 | 0.758건 | **0.578건** |
+| **RMSE** | 1.607건 | 1.175건 | 1.122건 | **1.051건** |
+| **포착률 k=5%** | 11.4% | 17.2% | 19.2% | **14.6%** |
+| **포착률 k=10%** | 21.8% | 28.0% | 29.5% | **28.3%** |
+| **포착률 k=30%** | — | 65.1% | 66.7% | **68.6%** |
+| **포착률 k=50%** | 85.1% | 87.4% | 92.0% | **90.0%** |
+| **RRI k=50%** | 1.10 | 1.13 | 1.19 | **1.16** |
+| **Moran's I** | — | 0.4291 | 0.4137 | **0.2708** |
 
-> 💡 **성과 해석:** 견인 데이터의 시간 누수(리키지)를 완벽히 필터링하고 실제 XGBoost 포아송 raw 예측값을 적용해 평가 수식을 엄격히 정정하였음에도, 미래 예측 AUROC는 **0.7980**으로 매우 강력하게 유지되며 RMSE/MAE 오차와 Moran's I(공간 편향성) 지표가 대폭 향상되는 고도화 성과를 거두었습니다.
+> 💡 **성과 해석:** 과거 사고의 극단적인 가중치 쏠림을 해결하기 위해 **이진화(Binarization)** 기법을 도입하고 **Tweedie Regression**을 연동한 결과, 0.8대의 초고성능 AUROC 판별력을 그대로 지켜내면서도 **Moran's I(공간 편향)가 0.38에서 0.27로 극적으로 감소**하여 지리적 일반화 성능을 완성했습니다. 또한, 예측 오차 MAE 역시 **0.578건**으로 최소화되어 모델의 정밀성이 극대화되었습니다.
 
 ### 공간 전이성 검증 (서울 학습 → 부산 Zero-shot)
 
@@ -288,3 +289,13 @@ RoadSafe/
 * Lacherre et al. (2024). *Factors, Prediction, and Explainability of Vehicle Accident Risk Due to Driving Behavior through Machine Learning.* Computation, 12, 131.
 * Kim et al. (2024). *SST-GCN: The Sequential based Spatio-Temporal Graph Convolutional Networks for Minute-level and Road-level Traffic Accident Risk Prediction.* arXiv:2405.18602.
 * Abdullah et al. (2026). *Identifying accident and safety risks in urban micromobility.* Sustainable Futures, 11.
+* Kim et al. (2021). *Identifying Factors Affecting Crash Severity of Personal Mobility by Crash Types Using Hierarchical Models.* Traffic Safety Research, 40, 89–107.
+* Jeong et al. (2024). *Policy Directions for Enhancing Traffic Safety of Personal Mobility Devices.* Traffic Safety Research, 43(1), 29–48.
+* Han et al. (2022). *Estimating Crash Probability of Personal Mobility Devices Using a Logistic Multilevel Model.* Traffic Safety Research, 41(1), 173–191.
+* Kim et al. (2025). *A Study on the Use of Personal Mobility Devices by Adolescents and Accident Prevention Strategies.* Traffic Safety Research, 44(2), 39–60.
+* Baek et al. (2023). *Policy Improvement Strategies Using Personal Mobility Big Data.* KRIHS Policy Brief, 913.
+* Seok. (2021). *Policy Responses to the Growth of Personal Mobility Use in Incheon.* Incheon Institute Policy Research Report.
+* Yu et al. (2025). *Travel Behavior and Policy Implications of Personal Mobility Devices in Busan Metropolitan City.* Proceedings of the Korean Society of Transportation Conference, 205–206.
+* Hong et al. (2022). *Analysis of Shared E-Scooter Usage Behavior and Satisfaction Factors Using Importance–Performance Analysis.* Journal of Korea Planning Association, 57(2), 92–107.
+* Seoul Metropolitan Government. (2026). *Operation of Korea’s First “Kickboard-Free Street”.* Seoul Metropolitan Government Press Release.
+* Daejeon Metropolitan City. (2026). *Creation of Personal Mobility-Free Pilot Streets in Daejeon.* Daejeon Metropolitan City Press Release.
