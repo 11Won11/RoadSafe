@@ -13,7 +13,7 @@ import matplotlib.font_manager as fm
 import logging
 import pickle
 from pathlib import Path
-from sklearn.metrics import roc_auc_score, f1_score, classification_report
+from sklearn.metrics import roc_auc_score, f1_score, classification_report, average_precision_score
 
 log = logging.getLogger(__name__)
 
@@ -89,6 +89,33 @@ def compute_pai(
         })
 
     return pd.DataFrame(records)
+
+
+def compute_pr_auc(
+    y_true: np.ndarray,
+    y_score: np.ndarray,
+) -> float:
+    """
+    PR-AUC (Average Precision Score) 계산.
+
+    AUROC는 클래스 불균형(사고 격자 5~15%)에서 낙관적으로 편향되는 반면,
+    PR-AUC는 다수 음성(비사고) 클래스에 둔감하므로 더 보수적이고 신뢰할 수 있는 지표입니다.
+
+    Args:
+        y_true: 이진 레이블 배열 (0/1)
+        y_score: 모델 예측 확률/스코어
+
+    Returns:
+        float: PR-AUC (Average Precision)
+    """
+    pos_rate = y_true.mean()
+    log.info(f"PR-AUC 계산 | Positive rate: {pos_rate*100:.1f}% (랜덤 baseline = {pos_rate:.3f})")
+    if y_true.sum() == 0 or y_true.sum() == len(y_true):
+        log.warning("PR-AUC 계산 불가: 단일 클래스만 존재")
+        return 0.0
+    pr_auc = average_precision_score(y_true, y_score)
+    log.info(f"PR-AUC={pr_auc:.4f} (랜덤 baseline={pos_rate:.4f}, 개선배율={pr_auc/pos_rate:.2f}x)")
+    return pr_auc
 
 
 
