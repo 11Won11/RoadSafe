@@ -300,11 +300,19 @@ def train_grid_model(
     feat_cols = [c for c in SPATIAL_FEAT_COLS if c in grid_df.columns]
     log.info(f"사용 Feature: {feat_cols}")
 
-    # ── 훈련: 2021-2024 사고 '발생 횟수(Count)' 기준 (포아송 회귀) ──
-    X = grid_df[feat_cols].fillna(0)
+    # ── 훈련: 2021-2024 사고 '발생 횟수(Count)' 기준 (Tweedie 회귀) ──
+    X = grid_df[feat_cols].fillna(0).copy()
+    
+    # [비판점 극복] 과거 4개년 사고 건수의 기여도가 너무 지배적이어서 타 유의미한 인프라 요인이 묻히는 것을 방지
+    # 이진화(Binarization: 0 또는 1)를 적용해 과거 사고의 극단적인 가중치 쏠림을 원천 차단하고,
+    # 모델이 인프라적 특징(교차로, POI, 견인 등)을 훨씬 균형 있고 입체적으로 공동 학습하도록 조정합니다.
+    if "acc_2021_24" in X.columns:
+        log.info("과거 사고 건수 Feature (acc_2021_24) 이진화(Binarization: 0 또는 1) 적용 → 인프라 피처 기여도 극대화 및 과편향 제거")
+        X["acc_2021_24"] = (X["acc_2021_24"] > 0).astype(int)
+
     y_train_count = grid_df["acc_2021_24"]
 
-    log.info(f"학습 타겟 | 사고 횟수 총합: {y_train_count.sum()}건 (포아송 회귀 모델 적용)")
+    log.info(f"학습 타겟 | 사고 횟수 총합: {y_train_count.sum()}건 (Tweedie 회귀 모델 적용)")
 
     # Optuna
     log.info(f"Optuna HPO 중 (n_trials={n_trials})...")

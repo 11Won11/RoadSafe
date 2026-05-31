@@ -25,12 +25,13 @@ RISK_FEAT_COLS = [
     "node_degree", "dist_to_nearest_intersection",
     "avg_lanes", "max_lanes",
     "is_primary_road", "is_secondary_road", "is_residential_road", "is_intersection",
+    "total_road_length_500m",
     "poi_count_commercial", "poi_count_bus_stop", "poi_count_station",
     "poi_count_university",
     "cctv_count_total", "cctv_count_traffic", "cctv_count_child",
     "elev_mean", "elev_range",
     "signal_count_total", "signal_count_pedestrian", "signal_count_vehicle",
-    "signal_has_audio", "crosswalk_count", "towing_count"
+    "signal_has_audio", "crosswalk_count", "towing_count", "acc_2021_24"
 ]
 
 
@@ -53,17 +54,22 @@ def export_grid_geojson():
     log.info("격자 데이터 로드 및 GeoJSON 변환 중...")
     df = pd.read_csv("data/interim/grid_features_with_labels_seoul.csv")
 
-    # 모델 로드
+    # 모델 및 피처 목록 로드
     model_path = Path("data/interim/xgb_grid_model.pkl")
     with open(model_path, "rb") as f:
         obj = pickle.load(f)
-    model = obj["model"] if isinstance(obj, dict) else obj
+    if isinstance(obj, dict):
+        model = obj["model"]
+        feature_names = obj["feature_names"]
+    else:
+        model = obj
+        feature_names = RISK_FEAT_COLS
 
     # 노출량 0 구역 필터
     valid_mask = df["intersection_count_500m"] > 0
     df_valid = df[valid_mask].copy()
 
-    X = df_valid[RISK_FEAT_COLS].fillna(0)
+    X = df_valid[feature_names].fillna(0)
     df_valid["risk_score"] = model.predict(X)
 
     # 정규화 (0 ~ 100)
@@ -159,11 +165,17 @@ def export_shap_importance():
     df = pd.read_csv("data/interim/grid_features_with_labels_seoul.csv")
     valid_mask = df["intersection_count_500m"] > 0
     df_valid = df[valid_mask].copy()
-    X = df_valid[RISK_FEAT_COLS].fillna(0)
 
     with open("data/interim/xgb_grid_model.pkl", "rb") as f:
         obj = pickle.load(f)
-    model = obj["model"] if isinstance(obj, dict) else obj
+    if isinstance(obj, dict):
+        model = obj["model"]
+        feature_names = obj["feature_names"]
+    else:
+        model = obj
+        feature_names = RISK_FEAT_COLS
+
+    X = df_valid[feature_names].fillna(0)
 
     explainer = shap.TreeExplainer(model)
     shap_values = explainer.shap_values(X)
@@ -181,6 +193,7 @@ def export_shap_importance():
         "is_secondary_road":             "집산도로 여부",
         "is_residential_road":           "이면도로 여부",
         "is_intersection":               "교차로 존재 여부",
+        "total_road_length_500m":        "반경 500m 도로 총연장 (m)",
         "poi_count_commercial":          "상업시설 수",
         "poi_count_bus_stop":            "버스 정류장 수",
         "poi_count_station":             "지하철역 수",
@@ -196,15 +209,16 @@ def export_shap_importance():
         "signal_has_audio":              "음향 신호기 수",
         "crosswalk_count":               "횡단보도 수",
         "towing_count":                  "킥보드 견인 수",
+        "acc_2021_24":                   "과거 4개년 누적 사고 건수",
     }
 
     shap_data = sorted([
         {
-            "feature": RISK_FEAT_COLS[i],
-            "label":   feature_labels.get(RISK_FEAT_COLS[i], RISK_FEAT_COLS[i]),
+            "feature": feature_names[i],
+            "label":   feature_labels.get(feature_names[i], feature_names[i]),
             "value":   round(float(mean_abs_shap[i]), 4)
         }
-        for i in range(len(RISK_FEAT_COLS))
+        for i in range(len(feature_names))
     ], key=lambda x: x["value"], reverse=True)
 
     out_path = WEB_DATA_DIR / "shap_importance.json"
@@ -218,26 +232,26 @@ def export_metrics():
     log.info("평가 지표 내보내기 중...")
 
     metrics = {
-        "auroc_2025":   0.7980,
-        "auroc_all":    0.8979,
+        "auroc_2025":   0.8096,
+        "auroc_all":    0.9857,
         "auroc_busan":  0.9114,
-        "mae_2025":     0.664,
-        "rmse_2025":    0.954,
+        "mae_2025":     0.676,
+        "rmse_2025":    1.547,
         "pai_table_2025": [
-            {"k": 5,  "capture": 15.3, "rri": 0.71},
-            {"k": 10, "capture": 28.0, "rri": 0.87},
-            {"k": 20, "capture": 48.7, "rri": 0.92},
-            {"k": 30, "capture": 66.3, "rri": 0.98},
-            {"k": 50, "capture": 92.3, "rri": 1.19},
+            {"k": 5,  "capture": 21.5, "rri": 1.00},
+            {"k": 10, "capture": 29.9, "rri": 0.93},
+            {"k": 20, "capture": 51.7, "rri": 0.98},
+            {"k": 30, "capture": 68.6, "rri": 1.01},
+            {"k": 50, "capture": 90.0, "rri": 1.16},
         ],
         "pai_table_busan": [
             {"k": 10, "capture": 57.0},
             {"k": 20, "capture": 82.6},
         ],
-        "feature_count":    26,
+        "feature_count":    27,
         "grid_count":       2426,
         "accident_count":   2132,
-        "high_risk_grids":  40,
+        "high_risk_grids":  43,
     }
 
     out_path = WEB_DATA_DIR / "metrics_summary.json"
