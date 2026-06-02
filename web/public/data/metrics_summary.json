@@ -1,34 +1,34 @@
 {
-  "auroc_2025": 0.798,
-  "auroc_all": 0.8979,
+  "auroc_2025": 0.8028,
+  "auroc_all": 0.9859,
   "auroc_busan": 0.9114,
-  "mae_2025": 0.664,
-  "rmse_2025": 0.954,
+  "mae_2025": 0.578,
+  "rmse_2025": 1.051,
   "pai_table_2025": [
     {
       "k": 5,
-      "capture": 15.3,
-      "rri": 0.71
+      "capture": 14.6,
+      "rri": 0.68
     },
     {
       "k": 10,
-      "capture": 28.0,
-      "rri": 0.87
+      "capture": 28.3,
+      "rri": 0.88
     },
     {
       "k": 20,
-      "capture": 48.7,
-      "rri": 0.92
+      "capture": 52.1,
+      "rri": 0.99
     },
     {
       "k": 30,
-      "capture": 66.3,
-      "rri": 0.98
+      "capture": 68.6,
+      "rri": 1.01
     },
     {
       "k": 50,
-      "capture": 92.3,
-      "rri": 1.19
+      "capture": 90.0,
+      "rri": 1.16
     }
   ],
   "pai_table_busan": [
@@ -41,8 +41,8 @@
       "capture": 82.6
     }
   ],
-  "feature_count": 26,
+  "feature_count": 27,
   "grid_count": 2426,
   "accident_count": 2132,
-  "high_risk_grids": 40
+  "high_risk_grids": 69
 }

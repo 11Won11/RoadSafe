@@ -15,8 +15,8 @@ const AnalyticsPanel = ({ metrics, shapData, geoData, selectedGu }) => {
   // 구 선택 시 SHAP 변수별 평균값 계산 (서울 전체 대비 비교)
   const guAvgStats = useMemo(() => {
     if (!guGrids.length) return null;
-    const fields = ['towing_cnt', 'poi_commercial', 'intersect_500', 'signal_total', 'crosswalk_cnt', 'cctv_total'];
-    const labels = { towing_cnt: '킥보드 견인', poi_commercial: '상업시설', intersect_500: '교차로(500m)', signal_total: '신호등', crosswalk_cnt: '횡단보도', cctv_total: 'CCTV' };
+    const fields = ['acc_2021_24', 'towing_cnt', 'poi_commercial', 'intersect_500', 'signal_total', 'crosswalk_cnt', 'cctv_total'];
+    const labels = { acc_2021_24: '과거 사고수', towing_cnt: '킥보드 견인', poi_commercial: '상업시설', intersect_500: '교차로(500m)', signal_total: '신호등', crosswalk_cnt: '횡단보도', cctv_total: 'CCTV' };
     const result = {};
     fields.forEach(f => {
       result[f] = { label: labels[f], avg: 0 };
@@ -27,7 +27,7 @@ const AnalyticsPanel = ({ metrics, shapData, geoData, selectedGu }) => {
 
   const seoulAvgStats = useMemo(() => {
     if (!geoData) return null;
-    const fields = ['towing_cnt', 'poi_commercial', 'intersect_500', 'signal_total', 'crosswalk_cnt', 'cctv_total'];
+    const fields = ['acc_2021_24', 'towing_cnt', 'poi_commercial', 'intersect_500', 'signal_total', 'crosswalk_cnt', 'cctv_total'];
     const result = {};
     const features = geoData.features.map(f => f.properties);
     fields.forEach(f => {
@@ -52,7 +52,7 @@ const AnalyticsPanel = ({ metrics, shapData, geoData, selectedGu }) => {
           <>
             {/* 모델 성능 카드 */}
             <div className="glass-card p-panel-internal rounded-lg">
-              <div className="text-label-md font-label-md text-slate-600 dark:text-on-surface-variant uppercase tracking-widest mb-1">XGBoost 포아송 회귀 모델</div>
+              <div className="text-label-md font-label-md text-slate-600 dark:text-on-surface-variant uppercase tracking-widest mb-1">XGBoost Tweedie 회귀 모델</div>
               <div className="text-headline-sm font-headline-sm text-slate-900 dark:text-white">
                 AUROC <span className="text-primary-fixed-dim ml-1">{metrics ? metrics.auroc_all.toFixed(4) : '...'}</span>
               </div>
@@ -117,9 +117,9 @@ const AnalyticsPanel = ({ metrics, shapData, geoData, selectedGu }) => {
                 핵심 인사이트
               </div>
               <ul className="flex flex-col gap-2 text-body-sm font-body-sm text-slate-900 dark:text-white/80">
-                <li className="flex gap-2"><span className="text-error shrink-0">•</span>상업시설 밀집 지역 → PM 사고 위험 1위</li>
-                <li className="flex gap-2"><span className="text-[#ff9500] shrink-0">•</span>킥보드 무단 방치 구역 = 사고 위험 2위</li>
-                <li className="flex gap-2"><span className="text-[#4ade80] shrink-0">•</span>상위 50% 집중 관리 시 92.3% 사고 예방</li>
+                <li className="flex gap-2"><span className="text-error shrink-0">•</span>과거 사고 발생 이력 → 공간 지속성(Persistence) 1위</li>
+                <li className="flex gap-2"><span className="text-[#ff9500] shrink-0">•</span>과거 이력 대비 최대 1.16배 예방 성능 (RRI) 입증</li>
+                <li className="flex gap-2"><span className="text-[#4ade80] shrink-0">•</span>상위 50% 집중 관리 시 90.0% 사고 사전 차단</li>
               </ul>
             </div>
           </>

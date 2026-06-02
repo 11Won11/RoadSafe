@@ -46,16 +46,26 @@ def _extract_spatial_features(lat: float, lon: float, G, nodes) -> dict:
         feat.update({"node_degree": 0, "dist_to_nearest_intersection": 9999,
                      "avg_lanes": 1.0, "max_lanes": 1.0,
                      "is_primary_road": 0, "is_secondary_road": 0,
-                     "is_residential_road": 0, "is_intersection": 0})
+                     "is_residential_road": 0, "is_intersection": 0,
+                     "total_road_length_500m": 0.0})
         return feat
 
     try:
+        total_road_length_m = 0.0
         for r in BUFFERS:
             nearby = nodes[
                 ((nodes["y"] - lat).abs() < r / 111000) &
                 ((nodes["x"] - lon).abs() < r / 88000)
             ]
             feat[f"intersection_count_{r}m"] = len(nearby)
+            # 반경 500m 엣지 길이 합산 (교차로 없는 직선도로·강변도로 구간 보존용)
+            if r == 500 and len(nearby) > 0:
+                nearby_node_ids = nearby.index.tolist()
+                for nid in nearby_node_ids:
+                    for _, _, edata in G.edges(nid, data=True):
+                        total_road_length_m += float(edata.get("length", 0))
+        # 중복 엣지 카운팅을 피하기 위해 평균으로 보정 (단순 추정, 방향 그래프)
+        feat["total_road_length_500m"] = round(total_road_length_m / 2, 1)
 
         nearest_node = ox.distance.nearest_nodes(G, lon, lat)
         feat["node_degree"] = G.degree(nearest_node)
@@ -105,6 +115,7 @@ def _extract_spatial_features(lat: float, lon: float, G, nodes) -> dict:
         feat.setdefault("is_secondary_road", 0)
         feat.setdefault("is_residential_road", 0)
         feat.setdefault("is_intersection", 0)
+        feat.setdefault("total_road_length_500m", 0.0)
     return feat
 
 
